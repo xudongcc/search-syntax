@@ -1,183 +1,116 @@
 import { parse } from ".";
 
-test("Empty query", () => {
+test("empty query", () => {
   expect(parse("")).toBe(null);
   expect(parse(null)).toBe(null);
   expect(parse(undefined)).toBe(null);
 });
 
-test("Is not null", () => {
+test("do not specify a field", () => {
+  expect(parse("Hello")).toMatchObject({
+    $text: {
+      $search: "Hello",
+    },
+  });
+});
+
+test("is not null", () => {
   expect(parse("NOT field:NULL")).toMatchObject({
-    type: "query",
-    value: [
-      {
-        connective: "AND",
-        node: {
-          type: "term",
-          name: "field",
-          comparator: "EQ",
-          value: null,
-          not: true,
-        },
+    $not: {
+      field: {
+        $eq: null,
       },
-    ],
+    },
   });
 });
 
-test("Removes leading and trailing whitespace", () => {
+test("removes leading and trailing whitespace", () => {
   expect(parse("field:test ")).toMatchObject({
-    type: "query",
-    value: [
-      {
-        connective: "AND",
-        node: {
-          type: "term",
-          name: "field",
-          comparator: "EQ",
-          value: "test",
-          not: false,
-        },
-      },
-    ],
+    field: {
+      $eq: "test",
+    },
   });
 });
 
-test("Decimal point", () => {
+test("number decimal point", () => {
   expect(parse("number:123.45")).toMatchObject({
-    type: "query",
-    value: [
-      {
-        connective: "AND",
-        node: {
-          type: "term",
-          name: "number",
-          comparator: "EQ",
-          value: 123.45,
-          not: false,
-        },
-      },
-    ],
+    number: {
+      $eq: 123.45,
+    },
   });
 });
 
-test("GT", () => {
+test("gt", () => {
   expect(parse("number:>123.45")).toMatchObject({
-    type: "query",
-    value: [
-      {
-        connective: "AND",
-        node: {
-          type: "term",
-          name: "number",
-          comparator: "GT",
-          value: 123.45,
-          not: false,
-        },
-      },
-    ],
+    number: {
+      $gt: 123.45,
+    },
   });
 });
 
-test("AND", () => {
+test("and", () => {
   expect(parse('name:"John Wick" AND enable:true')).toMatchObject({
-    type: "query",
-    value: [
+    $and: [
       {
-        connective: "AND",
-        node: {
-          type: "term",
-          name: "name",
-          comparator: "EQ",
-          value: "John Wick",
-          not: false,
+        name: {
+          $eq: '"John Wick"',
         },
       },
       {
-        connective: "AND",
-        node: {
-          type: "term",
-          name: "enable",
-          comparator: "EQ",
-          value: true,
-          not: false,
+        enable: {
+          $eq: true,
         },
       },
     ],
   });
 });
 
-test("OR", () => {
+test("or", () => {
   expect(parse("name:John OR enable:true")).toMatchObject({
-    type: "query",
-    value: [
+    $or: [
       {
-        connective: "AND",
-        node: {
-          type: "term",
-          name: "name",
-          comparator: "EQ",
-          value: "John",
-          not: false,
+        name: {
+          $eq: "John",
         },
       },
       {
-        connective: "OR",
-        node: {
-          type: "term",
-          name: "enable",
-          comparator: "EQ",
-          value: true,
-          not: false,
+        enable: {
+          $eq: true,
         },
       },
     ],
   });
 });
 
-test("Subquery", () => {
+test("sub query", () => {
   expect(
     parse(
-      'name:John OR (created_at:>="2020-01-01 00:00:00" AND created_at:<="2020-12-31 23:59:59")'
+      '(name:John OR age:>=18) created_at:>="2020-01-01 00:00:00" AND created_at:<="2020-12-31 23:59:59"'
     )
   ).toMatchObject({
-    type: "query",
-    value: [
+    $and: [
       {
-        connective: "AND",
-        node: {
-          type: "term",
-          name: "name",
-          comparator: "EQ",
-          value: "John",
-          not: false,
+        $or: [
+          {
+            name: {
+              $eq: "John",
+            },
+          },
+          {
+            age: {
+              $gte: 18,
+            },
+          },
+        ],
+      },
+      {
+        created_at: {
+          $gte: '"2020-01-01 00:00:00"',
         },
       },
       {
-        connective: "OR",
-        node: {
-          type: "query",
-          value: [
-            {
-              connective: "AND",
-              node: {
-                type: "term",
-                name: "created_at",
-                comparator: "GE",
-                value: "2020-01-01 00:00:00",
-                not: false,
-              },
-            },
-            {
-              connective: "AND",
-              node: {
-                type: "term",
-                name: "created_at",
-                comparator: "LE",
-                value: "2020-12-31 23:59:59",
-                not: false,
-              },
-            },
-          ],
+        created_at: {
+          $lte: '"2020-12-31 23:59:59"',
         },
       },
     ],
