@@ -92,6 +92,12 @@ export class SearchSyntaxToAstVisitor extends BaseCstVisitor {
       const value = this.visit(ctx.value);
       const comparator = this.visit(ctx.comparator);
 
+      if (comparator === "$eq") {
+        return {
+          [name]: value,
+        };
+      }
+
       return {
         [name]: { [comparator]: value },
       };
@@ -124,11 +130,15 @@ export class SearchSyntaxToAstVisitor extends BaseCstVisitor {
     }
 
     if ("QuotedString" in ctx) {
-      return ctx.QuotedString[0].image;
+      return ctx.QuotedString[0].image.slice(1, -1);
     }
 
     if ("Identifier" in ctx) {
       return ctx.Identifier[0].image;
+    }
+
+    if ("DateString" in ctx) {
+      return new Date(ctx.DateString[0].image);
     }
 
     if ("UnquotedLiteral" in ctx) {

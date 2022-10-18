@@ -1,118 +1,196 @@
 import { parse } from ".";
 
-test("empty query", () => {
-  expect(parse("")).toBe(null);
-  expect(parse(null)).toBe(null);
-  expect(parse(undefined)).toBe(null);
-});
+describe("Parser", () => {
+  describe("Simple Expressions", () => {
+    it("should parse simple id & value combos", () => {
+      expect(parse("id:3")).toMatchObject({ id: 3 });
 
-test("do not specify a field", () => {
-  expect(parse("Hello")).toMatchObject({
-    $text: {
-      $search: "Hello",
-    },
+      expect(parse("slug:getting-started")).toMatchObject({
+        slug: "getting-started",
+      });
+    });
   });
-});
 
-test("is not null", () => {
-  expect(parse("NOT field:NULL")).toMatchObject({
-    $not: {
-      field: {
-        $eq: null,
-      },
-    },
+  describe("Comparison Query Operators", () => {
+    it("can parse standard equals", () => {
+      expect(parse(`count:5`)).toMatchObject({ count: 5 });
+
+      expect(parse(`tag:getting-started`)).toMatchObject({
+        tag: "getting-started",
+      });
+
+      expect(parse(`author:"Joe Bloggs"`)).toMatchObject({
+        author: "Joe Bloggs",
+      });
+
+      expect(parse(`author:"123-test"`)).toMatchObject({ author: "123-test" });
+    });
+
+    it("can parse not equals", () => {
+      expect(parse(`-count:5`)).toMatchObject({ $not: { count: 5 } });
+
+      expect(parse(`-tag:getting-started`)).toMatchObject({
+        $not: { tag: "getting-started" },
+      });
+
+      expect(parse(`-author:"Joe Bloggs"`)).toMatchObject({
+        $not: { author: "Joe Bloggs" },
+      });
+    });
+
+    it("can parse greater than", () => {
+      expect(parse(`count:>5`)).toMatchObject({ count: { $gt: 5 } });
+
+      expect(parse(`tag:>getting-started`)).toMatchObject({
+        tag: { $gt: "getting-started" },
+      });
+
+      expect(parse(`author:>"Joe Bloggs"`)).toMatchObject({
+        author: { $gt: "Joe Bloggs" },
+      });
+    });
+
+    it("can parse less than", () => {
+      expect(parse(`count:<5`)).toMatchObject({ count: { $lt: 5 } });
+
+      expect(parse(`tag:<getting-started`)).toMatchObject({
+        tag: { $lt: "getting-started" },
+      });
+
+      expect(parse(`author:<"Joe Bloggs"`)).toMatchObject({
+        author: { $lt: "Joe Bloggs" },
+      });
+    });
+
+    it("can parse greater than or equals", () => {
+      expect(parse(`count:>=5`)).toMatchObject({ count: { $gte: 5 } });
+
+      expect(parse(`tag:>=getting-started`)).toMatchObject({
+        tag: { $gte: "getting-started" },
+      });
+
+      expect(parse(`author:>="Joe Bloggs"`)).toMatchObject({
+        author: { $gte: "Joe Bloggs" },
+      });
+    });
+
+    it("can parse less than or equals", () => {
+      expect(parse(`count:<=5`)).toMatchObject({ count: { $lte: 5 } });
+
+      expect(parse(`tag:<=getting-started`)).toMatchObject({
+        tag: { $lte: "getting-started" },
+      });
+
+      expect(parse(`author:<="Joe Bloggs"`)).toMatchObject({
+        author: { $lte: "Joe Bloggs" },
+      });
+    });
   });
-});
 
-test("removes leading and trailing whitespace", () => {
-  expect(parse("field:test ")).toMatchObject({
-    field: {
-      $eq: "test",
-    },
+  describe("Values", () => {
+    it("can parse null", () => {
+      expect(parse("image:null")).toMatchObject({ image: null });
+    });
+
+    it("can parse NOT null", () => {
+      expect(parse("-image:null")).toMatchObject({ $not: { image: null } });
+    });
+
+    it("can parse true", () => {
+      expect(parse("featured:true")).toMatchObject({ featured: true });
+    });
+
+    it("can parse NOT true", () => {
+      expect(parse("-featured:true")).toMatchObject({
+        $not: { featured: true },
+      });
+    });
+
+    it("can parse false", () => {
+      expect(parse("featured:false")).toMatchObject({ featured: false });
+    });
+
+    it("can parse NOT false", () => {
+      expect(parse("-featured:false")).toMatchObject({
+        $not: { featured: false },
+      });
+    });
+
+    it("can parse a Number", () => {
+      expect(parse("count:5")).toMatchObject({ count: 5 });
+    });
+
+    it("can parse NOT a Number", () => {
+      expect(parse("-count:5")).toMatchObject({ $not: { count: 5 } });
+    });
+
+    it("can parse a Date", () => {
+      expect(parse(`date:2022-01-01`)).toMatchObject({
+        date: new Date("2022-01-01"),
+      });
+    });
+
+    it("can parse NOT a Date", () => {
+      expect(parse("-date:2022-01-01")).toMatchObject({
+        $not: { date: new Date("2022-01-01") },
+      });
+    });
+
+    it("can parse a Datetime", () => {
+      expect(parse(`date:2022-01-01T12:34:56`)).toMatchObject({
+        date: new Date("2022-01-01T12:34:56"),
+      });
+    });
+
+    it("can parse NOT a Datetime", () => {
+      expect(parse("-date:2022-01-01T12:34:56")).toMatchObject({
+        $not: { date: new Date("2022-01-01T12:34:56") },
+      });
+    });
+
+    it("can parse a Datetime with timezone", () => {
+      expect(parse(`date:2022-01-01T12:34:56+08:00`)).toMatchObject({
+        date: new Date("2022-01-01T12:34:56+08:00"),
+      });
+    });
+
+    it("can parse NOT a Datetime with timezone", () => {
+      expect(parse("-date:2022-01-01T12:34:56+08:00")).toMatchObject({
+        $not: { date: new Date("2022-01-01T12:34:56+08:00") },
+      });
+    });
   });
-});
 
-test("number decimal point", () => {
-  expect(parse("number:123.45")).toMatchObject({
-    number: {
-      $eq: 123.45,
-    },
+  describe("Logical Query Operators", () => {
+    it("$and", () => {
+      expect(parse("page:false status:published")).toMatchObject({
+        $and: [{ page: false }, { status: "published" }],
+      });
+    });
+
+    it("$or", () => {
+      expect(parse("page:true OR featured:true")).toMatchObject({
+        $or: [{ page: true }, { featured: true }],
+      });
+
+      expect(parse("page:true OR page:false")).toMatchObject({
+        $or: [{ page: true }, { page: false }],
+      });
+    });
   });
-});
 
-test("gt", () => {
-  expect(parse("number:>123.45")).toMatchObject({
-    number: {
-      $gt: 123.45,
-    },
-  });
-});
+  describe("Whitespace rules", function () {
+    it("will ignore whitespace in expressions", function () {
+      expect(parse(`- count : 5`)).toMatchObject(parse(`-count:5`));
+      expect(parse(`- author : joe  tag : photo`)).toMatchObject(
+        parse(`-author:joe tag:photo`)
+      );
+    });
 
-test("and", () => {
-  expect(parse('name:"John Wick" AND enable:true')).toMatchObject({
-    $and: [
-      {
-        name: {
-          $eq: '"John Wick"',
-        },
-      },
-      {
-        enable: {
-          $eq: true,
-        },
-      },
-    ],
-  });
-});
-
-test("or", () => {
-  expect(parse("name:John OR enable:true")).toMatchObject({
-    $or: [
-      {
-        name: {
-          $eq: "John",
-        },
-      },
-      {
-        enable: {
-          $eq: true,
-        },
-      },
-    ],
-  });
-});
-
-test("sub query", () => {
-  expect(
-    parse(
-      '(name:John OR age:>=18) created_at:>="2020-01-01 00:00:00" AND created_at:<="2020-12-31 23:59:59"'
-    )
-  ).toMatchObject({
-    $and: [
-      {
-        $or: [
-          {
-            name: {
-              $eq: "John",
-            },
-          },
-          {
-            age: {
-              $gte: 18,
-            },
-          },
-        ],
-      },
-      {
-        created_at: {
-          $gte: '"2020-01-01 00:00:00"',
-        },
-      },
-      {
-        created_at: {
-          $lte: '"2020-12-31 23:59:59"',
-        },
-      },
-    ],
+    it("will not ignore whitespace in strings", function () {
+      expect(parse(`author : "Hello World"`)).not.toMatchObject(
+        parse(`author:'HelloWorld'`)
+      );
+    });
   });
 });

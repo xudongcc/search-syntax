@@ -4,6 +4,6 @@ import { Identifier } from "./Identifier";
 
 export const Null = createToken({
   name: "Null",
-  pattern: /NULL/,
+  pattern: /null|NULL/,
   longer_alt: Identifier,
 });

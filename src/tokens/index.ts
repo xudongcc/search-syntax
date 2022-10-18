@@ -1,4 +1,5 @@
 import { And } from "./And";
+import { DateString } from "./DateString";
 import { Equal } from "./Equal";
 import { False } from "./False";
 import { GreaterThan } from "./GreaterThan";
@@ -38,12 +39,14 @@ export {
   False,
   Number,
   QuotedString,
+  DateString,
   UnquotedLiteral,
   Identifier,
 };
 
 export const tokens = [
   WhiteSpace,
+  DateString,
   // 比较符
   GreaterThanOrEqual,
   GreaterThan,

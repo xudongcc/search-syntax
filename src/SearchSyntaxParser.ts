@@ -19,6 +19,7 @@ import {
   tokens,
   True,
   UnquotedLiteral,
+  DateString,
 } from "./tokens";
 
 export class SearchSyntaxParser extends CstParser {
@@ -71,10 +72,8 @@ export class SearchSyntaxParser extends CstParser {
     });
 
     $.RULE("term", () => {
-      $.OPTION(() => {
-        $.SUBRULE($.name);
-        $.SUBRULE($.comparator);
-      });
+      $.SUBRULE($.name);
+      $.SUBRULE($.comparator);
       $.SUBRULE($.value);
     });
 
@@ -142,6 +141,11 @@ export class SearchSyntaxParser extends CstParser {
         {
           ALT: () => {
             $.CONSUME(Identifier);
+          },
+        },
+        {
+          ALT: () => {
+            $.CONSUME(DateString);
           },
         },
         {
