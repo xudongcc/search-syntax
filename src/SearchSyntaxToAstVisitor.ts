@@ -1,3 +1,4 @@
+import { ParseOptions } from "./interfaces";
 import { SearchSyntaxParser } from "./SearchSyntaxParser";
 
 const parser = new SearchSyntaxParser();
@@ -5,7 +6,7 @@ const parser = new SearchSyntaxParser();
 const BaseCstVisitor = parser.getBaseCstVisitorConstructor();
 
 export class SearchSyntaxToAstVisitor extends BaseCstVisitor {
-  constructor() {
+  constructor(private readonly options?: ParseOptions) {
     super();
     this.validateVisitor();
   }
@@ -93,6 +94,22 @@ export class SearchSyntaxToAstVisitor extends BaseCstVisitor {
       const comparator = this.visit(ctx.comparator);
 
       if (comparator === "$eq") {
+        if (this.options?.arrayAttributes?.includes(name)) {
+          return {
+            [name]: {
+              $contains: [value],
+            },
+          };
+        }
+
+        if (this.options?.fulltextAttributes?.includes(name)) {
+          return {
+            [name]: {
+              $fulltext: [value],
+            },
+          };
+        }
+
         return {
           [name]: value,
         };
