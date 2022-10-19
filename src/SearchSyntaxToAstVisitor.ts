@@ -105,7 +105,7 @@ export class SearchSyntaxToAstVisitor extends BaseCstVisitor {
         if (this.options?.fulltextAttributes?.includes(name)) {
           return {
             [name]: {
-              $fulltext: [value],
+              $fulltext: value,
             },
           };
         }
