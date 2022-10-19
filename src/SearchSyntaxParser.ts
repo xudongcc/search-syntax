@@ -72,8 +72,11 @@ export class SearchSyntaxParser extends CstParser {
     });
 
     $.RULE("term", () => {
-      $.SUBRULE($.name);
-      $.SUBRULE($.comparator);
+      $.OPTION(() => {
+        $.SUBRULE($.name);
+        $.SUBRULE($.comparator);
+      });
+
       $.SUBRULE($.value);
     });
 

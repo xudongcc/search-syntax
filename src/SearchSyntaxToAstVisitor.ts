@@ -120,9 +120,38 @@ export class SearchSyntaxToAstVisitor extends BaseCstVisitor {
       };
     }
 
-    return {
-      $text: { $search: this.visit(ctx.value) },
-    };
+    if (
+      this.options?.globalAttributes instanceof Array &&
+      this.options?.globalAttributes.length > 0
+    ) {
+      const value = this.visit(ctx.value);
+
+      return {
+        $or: this.options.globalAttributes.map((attribute) => {
+          if (this.options?.arrayAttributes?.includes(attribute)) {
+            return {
+              [attribute]: {
+                $contains: [value],
+              },
+            };
+          }
+
+          if (this.options?.fulltextAttributes?.includes(attribute)) {
+            return {
+              [attribute]: {
+                $fulltext: value,
+              },
+            };
+          }
+
+          return {
+            [attribute]: value,
+          };
+        }),
+      };
+    }
+
+    return null;
   }
 
   name(ctx) {

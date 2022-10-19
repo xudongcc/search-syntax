@@ -11,6 +11,73 @@ describe("Parser", () => {
     });
   });
 
+  describe("Global Expressions", () => {
+    it("should parse simple id & value combos", () => {
+      expect(parse("hello")).toBeNull();
+
+      expect(
+        parse("hello", {
+          globalAttributes: ["id", "tags", "html"],
+          arrayAttributes: ["tags"],
+          fulltextAttributes: ["html"],
+        })
+      ).toMatchObject({
+        $or: [
+          {
+            id: "hello",
+          },
+          { tags: { $contains: ["hello"] } },
+          { html: { $fulltext: "hello" } },
+        ],
+      });
+
+      expect(
+        parse("hello world", {
+          globalAttributes: ["id", "tags", "html"],
+          arrayAttributes: ["tags"],
+          fulltextAttributes: ["html"],
+        })
+      ).toMatchObject({
+        $and: [
+          {
+            $or: [
+              {
+                id: "hello",
+              },
+              { tags: { $contains: ["hello"] } },
+              { html: { $fulltext: "hello" } },
+            ],
+          },
+          {
+            $or: [
+              {
+                id: "world",
+              },
+              { tags: { $contains: ["world"] } },
+              { html: { $fulltext: "world" } },
+            ],
+          },
+        ],
+      });
+
+      expect(
+        parse(`"hello world"`, {
+          globalAttributes: ["id", "tags", "html"],
+          arrayAttributes: ["tags"],
+          fulltextAttributes: ["html"],
+        })
+      ).toMatchObject({
+        $or: [
+          {
+            id: "hello world",
+          },
+          { tags: { $contains: ["hello world"] } },
+          { html: { $fulltext: "hello world" } },
+        ],
+      });
+    });
+  });
+
   describe("Comparison Query Operators", () => {
     it("can parse standard equals", () => {
       expect(parse(`count:5`)).toMatchObject({ count: 5 });
