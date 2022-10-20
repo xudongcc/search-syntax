@@ -192,6 +192,10 @@ export class SearchSyntaxToAstVisitor<T>
   }
 
   value(ctx: ValueCstChildren, type: AttributeOptions["type"]): any {
+    if (ctx.Value[0].tokenType.name === "Null") {
+      return null;
+    }
+
     if (typeof type !== "undefined") {
       switch (type) {
         case "string":
@@ -208,16 +212,11 @@ export class SearchSyntaxToAstVisitor<T>
     }
 
     switch (ctx.Value[0].tokenType.name) {
-      case "Null": {
-        return null;
-      }
-      case "True": {
+      case "True":
         return true;
-      }
-      case "False": {
+      case "False":
         return false;
-      }
-      case "Number": {
+      case "Number":
         const value = Number(ctx.Value[0].image);
 
         return Number.isNaN(value) ||
@@ -225,16 +224,12 @@ export class SearchSyntaxToAstVisitor<T>
           value < Number.MIN_SAFE_INTEGER
           ? ctx.Value[0].image
           : value;
-      }
-      case "Date": {
+      case "Date":
         return new Date(ctx.Value[0].image);
-      }
-      case "QuotedString": {
+      case "QuotedString":
         return ctx.Value[0].image.slice(1, -1);
-      }
-      default: {
+      default:
         return ctx.Value[0].image;
-      }
     }
   }
 }
