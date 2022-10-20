@@ -90,7 +90,7 @@ export class SearchSyntaxToAstVisitor
         if (this.options?.arrayAttributes?.includes(field)) {
           return {
             [field]: {
-              $contains: [value],
+              $contains: [String(value)],
             },
           };
         }
@@ -98,7 +98,7 @@ export class SearchSyntaxToAstVisitor
         if (this.options?.fulltextAttributes?.includes(field)) {
           return {
             [field]: {
-              $fulltext: value,
+              $fulltext: String(value),
             },
           };
         }
@@ -124,7 +124,7 @@ export class SearchSyntaxToAstVisitor
           if (this.options?.arrayAttributes?.includes(attribute)) {
             return {
               [attribute]: {
-                $contains: [value],
+                $contains: [String(value)],
               },
             };
           }
@@ -132,7 +132,7 @@ export class SearchSyntaxToAstVisitor
           if (this.options?.fulltextAttributes?.includes(attribute)) {
             return {
               [attribute]: {
-                $fulltext: value,
+                $fulltext: String(value),
               },
             };
           }

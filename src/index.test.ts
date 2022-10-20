@@ -16,6 +16,22 @@ describe("Parser", () => {
       expect(parse("hello")).toBeNull();
 
       expect(
+        parse("123456", {
+          globalAttributes: ["id", "tags", "html"],
+          arrayAttributes: ["tags"],
+          fulltextAttributes: ["html"],
+        })
+      ).toMatchObject({
+        $or: [
+          {
+            id: 123456,
+          },
+          { tags: { $contains: ["123456"] } },
+          { html: { $fulltext: "123456" } },
+        ],
+      });
+
+      expect(
         parse("hello", {
           globalAttributes: ["id", "tags", "html"],
           arrayAttributes: ["tags"],
