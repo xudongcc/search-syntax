@@ -17,9 +17,11 @@ describe("Parser", () => {
 
       expect(
         parse("123456", {
-          globalAttributes: ["id", "tags", "html"],
-          arrayAttributes: ["tags"],
-          fulltextAttributes: ["html"],
+          attributes: {
+            id: { type: "number", searchable: true },
+            tags: { type: "string", array: true, searchable: true },
+            html: { type: "string", fulltext: true, searchable: true },
+          },
         })
       ).toMatchObject({
         $or: [
@@ -33,9 +35,11 @@ describe("Parser", () => {
 
       expect(
         parse("hello", {
-          globalAttributes: ["id", "tags", "html"],
-          arrayAttributes: ["tags"],
-          fulltextAttributes: ["html"],
+          attributes: {
+            id: { type: "string", searchable: true },
+            tags: { type: "string", array: true, searchable: true },
+            html: { type: "string", fulltext: true, searchable: true },
+          },
         })
       ).toMatchObject({
         $or: [
@@ -49,9 +53,11 @@ describe("Parser", () => {
 
       expect(
         parse("hello world", {
-          globalAttributes: ["id", "tags", "html"],
-          arrayAttributes: ["tags"],
-          fulltextAttributes: ["html"],
+          attributes: {
+            id: { type: "string", searchable: true },
+            tags: { type: "string", array: true, searchable: true },
+            html: { type: "string", fulltext: true, searchable: true },
+          },
         })
       ).toMatchObject({
         $and: [
@@ -78,9 +84,11 @@ describe("Parser", () => {
 
       expect(
         parse(`"hello world"`, {
-          globalAttributes: ["id", "tags", "html"],
-          arrayAttributes: ["tags"],
-          fulltextAttributes: ["html"],
+          attributes: {
+            id: { type: "string", searchable: true },
+            tags: { type: "string", array: true, searchable: true },
+            html: { type: "string", fulltext: true, searchable: true },
+          },
         })
       ).toMatchObject({
         $or: [

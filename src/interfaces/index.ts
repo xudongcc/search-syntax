@@ -1,21 +1,25 @@
+export * from "./Attributes";
+export * from "./AttributeOptions";
 export * from "./ParseOptions";
 
 export type AlternativeType<T> = T extends ReadonlyArray<infer U> ? T | U : T;
 
 export type Filter<T> = {
-  [P in keyof T]?: FilterOperators<AlternativeType<T[P]>>;
-} & RootFilterOperators<T>;
+  [P in keyof T]?: ComparatorOperators<AlternativeType<T[P]>>;
+} & ConnectiveOperators<T>;
 
-export interface FilterOperators<T = Record<string, unknown>> {
+export interface ComparatorOperators<T = Record<string, unknown>> {
   $eq?: T;
   $gt?: T;
   $gte?: T;
   $lt?: T;
   $lte?: T;
+  $contains?: T[];
+  $fulltext?: T;
 }
 
-export interface RootFilterOperators<T = Record<string, unknown>> {
+export interface ConnectiveOperators<T = Record<string, unknown>> {
   $and?: Array<Filter<T>>;
   $or?: Array<Filter<T>>;
-  $not?: FilterOperators<T>;
+  $not?: Filter<T>;
 }

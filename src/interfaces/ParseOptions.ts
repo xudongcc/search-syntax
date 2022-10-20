@@ -1,5 +1,6 @@
+import { Attributes } from "./Attributes";
+
 export interface ParseOptions {
-  globalAttributes?: string[];
-  arrayAttributes?: string[];
-  fulltextAttributes?: string[];
+  attributes?: Attributes;
+  timezone?: string;
 }
