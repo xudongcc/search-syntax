@@ -3,6 +3,6 @@ import { Identifier } from "../Identifier";
 
 export const Or = createToken({
   name: "Or",
-  pattern: /OR/,
-  longer_alt: [Identifier],
+  pattern: /or|OR/,
+  longer_alt: Identifier,
 });

@@ -3,6 +3,6 @@ import { Identifier } from "../Identifier";
 
 export const And = createToken({
   name: "And",
-  pattern: /AND/,
-  longer_alt: [Identifier],
+  pattern: /and|AND/,
+  longer_alt: Identifier,
 });

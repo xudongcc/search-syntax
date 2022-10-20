@@ -4,7 +4,7 @@ import { Value } from "./Value";
 
 export const Null = createToken({
   name: "Null",
-  pattern: /null|NULL/,
-  longer_alt: [Identifier],
+  pattern: /null/,
+  longer_alt: Identifier,
   categories: [Value],
 });
