@@ -1,26 +1,12 @@
 import { CstParser } from "chevrotain";
 
-import {
-  And,
-  Equal,
-  False,
-  GreaterThan,
-  GreaterThanOrEqual,
-  Identifier,
-  LeftBraket,
-  LessThan,
-  LessThanOrEqual,
-  Not,
-  Null,
-  Number,
-  Or,
-  QuotedString,
-  RightBraket,
-  tokens,
-  True,
-  UnquotedLiteral,
-  DateString,
-} from "./tokens";
+import { tokens } from "./tokens";
+
+import { And, Not, Or } from "./tokens/connectives";
+import { LeftBracket, RightBracket } from "./tokens/brackets";
+import { Comparator } from "./tokens/comparators";
+import { Field } from "./tokens/fields";
+import { Value } from "./tokens/values";
 
 export class SearchSyntaxParser extends CstParser {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,97 +52,30 @@ export class SearchSyntaxParser extends CstParser {
     });
 
     $.RULE("subQuery", () => {
-      $.CONSUME(LeftBraket);
+      $.CONSUME(LeftBracket);
       $.SUBRULE($.query);
-      $.CONSUME(RightBraket);
+      $.CONSUME(RightBracket);
     });
 
     $.RULE("term", () => {
       $.OPTION(() => {
-        $.SUBRULE($.name);
+        $.SUBRULE($.field);
         $.SUBRULE($.comparator);
       });
 
       $.SUBRULE($.value);
     });
 
-    $.RULE("comparator", () => {
-      $.OR([
-        {
-          ALT: () => {
-            $.CONSUME(Equal);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(GreaterThan);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(GreaterThanOrEqual);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(LessThan);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(LessThanOrEqual);
-          },
-        },
-      ]);
+    $.RULE("field", () => {
+      $.CONSUME(Field);
     });
 
-    $.RULE("name", () => {
-      $.CONSUME(Identifier);
+    $.RULE("comparator", () => {
+      $.CONSUME(Comparator);
     });
 
     $.RULE("value", () => {
-      $.OR([
-        {
-          ALT: () => {
-            $.CONSUME(Null);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(True);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(False);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(Number);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(QuotedString);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(Identifier);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(DateString);
-          },
-        },
-        {
-          ALT: () => {
-            $.CONSUME(UnquotedLiteral);
-          },
-        },
-      ]);
+      $.CONSUME(Value);
     });
 
     this.performSelfAnalysis();

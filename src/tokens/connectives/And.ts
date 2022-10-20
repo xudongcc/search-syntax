@@ -1,9 +1,8 @@
 import { createToken } from "chevrotain";
-
-import { Identifier } from "./Identifier";
+import { Identifier } from "../Identifier";
 
 export const And = createToken({
   name: "And",
   pattern: /AND/,
-  longer_alt: Identifier,
+  longer_alt: [Identifier],
 });

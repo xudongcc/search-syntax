@@ -191,6 +191,18 @@ describe("Parser", () => {
       expect(parse("-count:5")).toMatchObject({ $not: { count: 5 } });
     });
 
+    it("can parse a Bigint", () => {
+      expect(parse("count:9007199254740992")).toMatchObject({
+        count: "9007199254740992",
+      });
+    });
+
+    it("can parse NOT a Bigint", () => {
+      expect(parse("-count:9007199254740992")).toMatchObject({
+        $not: { count: "9007199254740992" },
+      });
+    });
+
     it("can parse a Date", () => {
       expect(parse(`date:2022-01-01`)).toMatchObject({
         date: new Date("2022-01-01"),

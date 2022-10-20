@@ -15,7 +15,7 @@ export interface FilterOperators<T = Record<string, unknown>> {
 }
 
 export interface RootFilterOperators<T = Record<string, unknown>> {
-  $and?: Filter<T>[];
-  $or?: Filter<T>[];
+  $and?: Array<Filter<T>>;
+  $or?: Array<Filter<T>>;
   $not?: FilterOperators<T>;
 }

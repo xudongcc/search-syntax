@@ -10,7 +10,7 @@ export function parse<T = Record<string, any>>(
   options?: ParseOptions
 ): Filter<T> {
   if (!query) {
-    return null;
+    return {};
   }
 
   parser.input = SearchSyntaxLexer.tokenize(query.trim()).tokens;

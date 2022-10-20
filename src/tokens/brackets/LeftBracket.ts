@@ -1,6 +1,6 @@
 import { createToken } from "chevrotain";
 
-export const LeftBraket = createToken({
-  name: "LeftBraket",
+export const LeftBracket = createToken({
+  name: "LeftBracket",
   pattern: /\(/,
 });
