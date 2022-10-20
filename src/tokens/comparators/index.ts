@@ -3,7 +3,7 @@ import { Equal } from "./Equal";
 import { GreaterThan } from "./GreaterThan";
 import { GreaterThanOrEqual } from "./GreaterThanOrEqual";
 import { LessThan } from "./LessThan";
-import { LessThanOrEqual } from "./lessThanOrEqual";
+import { LessThanOrEqual } from "./LessThanOrEqual";
 
 export * from "./Comparator";
 export * from "./Equal";
