@@ -98,14 +98,18 @@ export class SearchSyntaxToAstVisitor<T>
       typeof ctx.comparator !== "undefined"
     ) {
       const field = this.visit(ctx.field);
-      const comparator = this.visit(ctx.comparator);
-      const value = this.visit(ctx.value);
 
       const attribute = this.options?.attributes?.[field];
 
-      if (this.options?.attributes != null && attribute?.filterable === false) {
+      if (
+        typeof this.options?.attributes !== "undefined" &&
+        attribute?.filterable === false
+      ) {
         return null;
       }
+
+      const comparator = this.visit(ctx.comparator);
+      const value = this.visit(ctx.value, attribute?.type);
 
       if (comparator === "$eq") {
         if (attribute?.array === true) {
