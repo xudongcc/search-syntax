@@ -5,6 +5,8 @@ import { SearchSyntaxToAstVisitor } from "./SearchSyntaxToAstVisitor";
 
 const parser = new SearchSyntaxParser();
 
+export * from "./interfaces";
+
 export function parse<T = Record<string, any>>(
   query: string,
   options?: ParseOptions

@@ -103,7 +103,7 @@ export class SearchSyntaxToAstVisitor<T>
 
       const attribute = this.options?.attributes?.[field];
 
-      if (this.options?.attributes != null && attribute == null) {
+      if (this.options?.attributes != null && attribute?.filterable === false) {
         return null;
       }
 
@@ -132,41 +132,41 @@ export class SearchSyntaxToAstVisitor<T>
       return {
         [field]: { [comparator]: value },
       };
-    }
+    } else {
+      const searchableAttributes: Attributes = pickBy(
+        this.options?.attributes,
+        (attribute) => attribute.searchable
+      );
 
-    const searchableAttributes: Attributes = pickBy(
-      this.options?.attributes,
-      (attribute) => attribute.searchable
-    );
+      if (Object.keys(searchableAttributes).length > 0) {
+        return {
+          $or: Object.entries(searchableAttributes).map(
+            ([name, { array, type, fulltext }]: [any, any]): Filter<T> => {
+              const value = this.visit(ctx.value, type);
 
-    if (Object.keys(searchableAttributes).length > 0) {
-      return {
-        $or: Object.entries(searchableAttributes).map(
-          ([name, { array, type, fulltext }]: [any, any]): Filter<T> => {
-            const value = this.visit(ctx.value, type);
+              if (array === true) {
+                return {
+                  [name]: {
+                    $contains: [value],
+                  },
+                };
+              }
 
-            if (array === true) {
+              if (fulltext === true) {
+                return {
+                  [name]: {
+                    $fulltext: value,
+                  },
+                };
+              }
+
               return {
-                [name]: {
-                  $contains: [value],
-                },
+                [name]: value,
               };
             }
-
-            if (fulltext === true) {
-              return {
-                [name]: {
-                  $fulltext: value,
-                },
-              };
-            }
-
-            return {
-              [name]: value,
-            };
-          }
-        ),
-      };
+          ),
+        };
+      }
     }
 
     return null;
