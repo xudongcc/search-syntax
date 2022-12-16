@@ -296,4 +296,12 @@ describe("Parser", () => {
       );
     });
   });
+
+  describe("nested field rules", function () {
+    it("nested field in expressions", function () {
+      expect(parse(`post.id: 1`)).toMatchObject({
+        post: { id: 1 },
+      });
+    });
+  });
 });

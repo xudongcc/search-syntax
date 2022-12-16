@@ -1,4 +1,5 @@
 import pickBy from "lodash/pickBy";
+import setWith from "lodash/setWith";
 import {
   AndQueryCstChildren,
   AtomicQueryCstChildren,
@@ -113,29 +114,17 @@ export class SearchSyntaxToAstVisitor<T>
 
       if (comparator === "$eq") {
         if (attribute?.array === true) {
-          return {
-            [field]: {
-              $contains: [value],
-            },
-          };
+          return setWith({}, field, { $contains: [value] });
         }
 
         if (attribute?.fulltext === true) {
-          return {
-            [field]: {
-              $fulltext: value,
-            },
-          };
+          return setWith({}, field, { $fulltext: value });
         }
 
-        return {
-          [field]: value,
-        };
+        return setWith({}, field, value);
       }
 
-      return {
-        [field]: { [comparator]: value },
-      };
+      return setWith({}, field, { [comparator]: value });
     } else {
       const searchableAttributes: Attributes = pickBy(
         this.options?.attributes,
@@ -145,28 +134,18 @@ export class SearchSyntaxToAstVisitor<T>
       if (Object.keys(searchableAttributes).length > 0) {
         return {
           $or: Object.entries(searchableAttributes).map(
-            ([name, { array, type, fulltext }]: [any, any]): Filter<T> => {
+            ([field, { array, type, fulltext }]: [any, any]): Filter<T> => {
               const value = this.visit(ctx.value, type);
 
               if (array === true) {
-                return {
-                  [name]: {
-                    $contains: [value],
-                  },
-                };
+                return setWith({}, field, { $contains: [value] });
               }
 
               if (fulltext === true) {
-                return {
-                  [name]: {
-                    $fulltext: value,
-                  },
-                };
+                return setWith({}, field, { $fulltext: value });
               }
 
-              return {
-                [name]: value,
-              };
+              return setWith({}, field, value);
             }
           ),
         };
@@ -221,6 +200,7 @@ export class SearchSyntaxToAstVisitor<T>
       case "False":
         return false;
       case "Number":
+        // eslint-disable-next-line no-case-declarations
         const value = Number(ctx.Value[0].image);
 
         return Number.isNaN(value) ||

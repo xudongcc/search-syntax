@@ -28,10 +28,12 @@
     "semantic-release": "semantic-release"
   },
   "dependencies": {
-    "chevrotain": "^10.3.0"
+    "chevrotain": "^10.3.0",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@types/jest": "^29.2.0",
+    "@types/lodash": "^4.14.191",
     "@typescript-eslint/eslint-plugin": "^5.40.1",
     "@typescript-eslint/parser": "^5.40.1",
     "commitizen": "^4.2.5",
