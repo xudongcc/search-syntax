@@ -1,5 +1,5 @@
 export interface AttributeOptions {
-  type: "string" | "number" | "boolean" | "date";
+  type: "string" | "number" | "bigint" | "boolean" | "date";
   array?: boolean;
   fulltext?: boolean;
   filterable?: boolean;

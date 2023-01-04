@@ -1,9 +1,12 @@
+import compact from "lodash/compact";
 import pickBy from "lodash/pickBy";
 import setWith from "lodash/setWith";
+
 import {
   AndQueryCstChildren,
   AtomicQueryCstChildren,
   ComparatorCstChildren,
+  FieldCstChildren,
   ICstNodeVisitor,
   NotQueryCstChildren,
   OrQueryCstChildren,
@@ -133,20 +136,28 @@ export class SearchSyntaxToAstVisitor<T>
 
       if (Object.keys(searchableAttributes).length > 0) {
         return {
-          $or: Object.entries(searchableAttributes).map(
-            ([field, { array, type, fulltext }]: [any, any]): Filter<T> => {
-              const value = this.visit(ctx.value, type);
+          $or: compact(
+            Object.entries(searchableAttributes).map(
+              ([field, { array, type, fulltext }]: [any, any]):
+                | Filter<T>
+                | undefined => {
+                const value = this.visit(ctx.value, type);
 
-              if (array === true) {
-                return setWith({}, field, { $contains: [value] });
+                if (typeof value !== "undefined") {
+                  if (array === true) {
+                    return setWith({}, field, { $contains: [value] });
+                  }
+
+                  if (fulltext === true) {
+                    return setWith({}, field, { $fulltext: value });
+                  }
+
+                  return setWith({}, field, value);
+                }
+
+                return undefined;
               }
-
-              if (fulltext === true) {
-                return setWith({}, field, { $fulltext: value });
-              }
-
-              return setWith({}, field, value);
-            }
+            )
           ),
         };
       }
@@ -155,7 +166,7 @@ export class SearchSyntaxToAstVisitor<T>
     return null;
   }
 
-  field(ctx): string {
+  field(ctx: FieldCstChildren): string {
     return ctx.Field[0].image;
   }
 
@@ -174,23 +185,31 @@ export class SearchSyntaxToAstVisitor<T>
     }
   }
 
-  value(ctx: ValueCstChildren, type: AttributeOptions["type"]): any {
+  value(ctx: ValueCstChildren, type?: AttributeOptions["type"]): any {
     if (ctx.Value[0].tokenType.name === "Null") {
       return null;
     }
 
     if (typeof type !== "undefined") {
-      switch (type) {
-        case "string":
-          return ctx.Value[0].tokenType.name === "QuotedString"
-            ? ctx.Value[0].image.slice(1, -1)
-            : ctx.Value[0].image;
-        case "number":
-          return Number(ctx.Value[0].image);
-        case "boolean":
-          return ctx.Value[0].image === "true";
-        case "date":
-          return new Date(ctx.Value[0].image);
+      try {
+        switch (type) {
+          case "string":
+            return ctx.Value[0].tokenType.name === "QuotedString"
+              ? ctx.Value[0].image.slice(1, -1)
+              : ctx.Value[0].image;
+          case "number":
+            return Number(ctx.Value[0].image);
+          case "bigint":
+            return BigInt(ctx.Value[0].image);
+          case "boolean":
+            return ctx.Value[0].image === "true";
+          case "date": {
+            const date = new Date(ctx.Value[0].image);
+            return isNaN(date.getTime()) ? undefined : date;
+          }
+        }
+      } catch (err) {
+        return undefined;
       }
     }
 
@@ -206,7 +225,7 @@ export class SearchSyntaxToAstVisitor<T>
         return Number.isNaN(value) ||
           value > Number.MAX_SAFE_INTEGER ||
           value < Number.MIN_SAFE_INTEGER
-          ? ctx.Value[0].image
+          ? BigInt(ctx.Value[0].image)
           : value;
       case "Date":
         return new Date(ctx.Value[0].image);

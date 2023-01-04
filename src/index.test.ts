@@ -18,7 +18,7 @@ describe("Parser", () => {
       expect(
         parse("123456", {
           attributes: {
-            id: { type: "number", searchable: true },
+            id: { type: "bigint", searchable: true },
             tags: { type: "string", array: true, searchable: true },
             html: { type: "string", fulltext: true, searchable: true },
           },
@@ -26,7 +26,7 @@ describe("Parser", () => {
       ).toMatchObject({
         $or: [
           {
-            id: 123456,
+            id: 123456n,
           },
           { tags: { $contains: ["123456"] } },
           { html: { $fulltext: "123456" } },
@@ -36,16 +36,14 @@ describe("Parser", () => {
       expect(
         parse("hello", {
           attributes: {
-            id: { type: "string", searchable: true },
+            id: { type: "bigint", searchable: true },
             tags: { type: "string", array: true, searchable: true },
             html: { type: "string", fulltext: true, searchable: true },
+            createdAt: { type: "date", searchable: true },
           },
         })
       ).toMatchObject({
         $or: [
-          {
-            id: "hello",
-          },
           { tags: { $contains: ["hello"] } },
           { html: { $fulltext: "hello" } },
         ],
@@ -54,27 +52,22 @@ describe("Parser", () => {
       expect(
         parse("hello world", {
           attributes: {
-            id: { type: "string", searchable: true },
+            id: { type: "bigint", searchable: true },
             tags: { type: "string", array: true, searchable: true },
             html: { type: "string", fulltext: true, searchable: true },
+            createdAt: { type: "date", searchable: true },
           },
         })
       ).toMatchObject({
         $and: [
           {
             $or: [
-              {
-                id: "hello",
-              },
               { tags: { $contains: ["hello"] } },
               { html: { $fulltext: "hello" } },
             ],
           },
           {
             $or: [
-              {
-                id: "world",
-              },
               { tags: { $contains: ["world"] } },
               { html: { $fulltext: "world" } },
             ],
@@ -85,16 +78,14 @@ describe("Parser", () => {
       expect(
         parse(`"hello world"`, {
           attributes: {
-            id: { type: "string", searchable: true },
+            id: { type: "bigint", searchable: true },
             tags: { type: "string", array: true, searchable: true },
             html: { type: "string", fulltext: true, searchable: true },
+            createdAt: { type: "date", searchable: true },
           },
         })
       ).toMatchObject({
         $or: [
-          {
-            id: "hello world",
-          },
           { tags: { $contains: ["hello world"] } },
           { html: { $fulltext: "hello world" } },
         ],
@@ -217,13 +208,13 @@ describe("Parser", () => {
 
     it("can parse a Bigint", () => {
       expect(parse("count:9007199254740992")).toMatchObject({
-        count: "9007199254740992",
+        count: 9007199254740992n,
       });
     });
 
     it("can parse NOT a Bigint", () => {
       expect(parse("-count:9007199254740992")).toMatchObject({
-        $not: { count: "9007199254740992" },
+        $not: { count: 9007199254740992n },
       });
     });
 
