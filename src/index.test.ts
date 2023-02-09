@@ -109,14 +109,39 @@ describe("Parser", () => {
     });
 
     it("can parse not equals", () => {
-      expect(parse(`-count:5`)).toMatchObject({ $not: { count: 5 } });
+      expect(parse(`-count:5`)).toMatchObject({
+        $not: { $and: [{ count: 5 }] },
+      });
+
+      expect(parse(`not count:5`)).toMatchObject({
+        $not: { $and: [{ count: 5 }] },
+      });
 
       expect(parse(`-tag:getting-started`)).toMatchObject({
-        $not: { tag: "getting-started" },
+        $not: { $and: [{ tag: "getting-started" }] },
       });
 
       expect(parse(`-author:"Joe Bloggs"`)).toMatchObject({
-        $not: { author: "Joe Bloggs" },
+        $not: { $and: [{ author: "Joe Bloggs" }] },
+      });
+
+      expect(
+        parse(`-(tag:getting-started OR author:"Joe Bloggs")`)
+      ).toMatchObject({
+        $not: {
+          $or: [{ tag: "getting-started" }, { author: "Joe Bloggs" }],
+        },
+      });
+
+      expect(
+        parse(`-(tag:getting-started OR -author:"Joe Bloggs")`)
+      ).toMatchObject({
+        $not: {
+          $or: [
+            { tag: "getting-started" },
+            { $not: { $and: [{ author: "Joe Bloggs" }] } },
+          ],
+        },
       });
     });
 
@@ -175,7 +200,9 @@ describe("Parser", () => {
     });
 
     it("can parse NOT null", () => {
-      expect(parse("-image:null")).toMatchObject({ $not: { image: null } });
+      expect(parse("-image:null")).toMatchObject({
+        $not: { $and: [{ image: null }] },
+      });
     });
 
     it("can parse true", () => {
@@ -184,7 +211,7 @@ describe("Parser", () => {
 
     it("can parse NOT true", () => {
       expect(parse("-featured:true")).toMatchObject({
-        $not: { featured: true },
+        $not: { $and: [{ featured: true }] },
       });
     });
 
@@ -194,7 +221,7 @@ describe("Parser", () => {
 
     it("can parse NOT false", () => {
       expect(parse("-featured:false")).toMatchObject({
-        $not: { featured: false },
+        $not: { $and: [{ featured: false }] },
       });
     });
 
@@ -203,7 +230,9 @@ describe("Parser", () => {
     });
 
     it("can parse NOT a Number", () => {
-      expect(parse("-count:5")).toMatchObject({ $not: { count: 5 } });
+      expect(parse("-count:5")).toMatchObject({
+        $not: { $and: [{ count: 5 }] },
+      });
     });
 
     it("can parse a Bigint", () => {
@@ -214,7 +243,7 @@ describe("Parser", () => {
 
     it("can parse NOT a Bigint", () => {
       expect(parse("-count:9007199254740992")).toMatchObject({
-        $not: { count: 9007199254740992n },
+        $not: { $and: [{ count: 9007199254740992n }] },
       });
     });
 
@@ -226,7 +255,7 @@ describe("Parser", () => {
 
     it("can parse NOT a Date", () => {
       expect(parse("-date:2022-01-01")).toMatchObject({
-        $not: { date: new Date("2022-01-01") },
+        $not: { $and: [{ date: new Date("2022-01-01") }] },
       });
     });
 
@@ -238,7 +267,7 @@ describe("Parser", () => {
 
     it("can parse NOT a Datetime", () => {
       expect(parse("-date:2022-01-01T12:34:56")).toMatchObject({
-        $not: { date: new Date("2022-01-01T12:34:56") },
+        $not: { $and: [{ date: new Date("2022-01-01T12:34:56") }] },
       });
     });
 
@@ -250,7 +279,7 @@ describe("Parser", () => {
 
     it("can parse NOT a Datetime with timezone", () => {
       expect(parse("-date:2022-01-01T12:34:56+08:00")).toMatchObject({
-        $not: { date: new Date("2022-01-01T12:34:56+08:00") },
+        $not: { $and: [{ date: new Date("2022-01-01T12:34:56+08:00") }] },
       });
     });
   });

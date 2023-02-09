@@ -1,6 +1,7 @@
 import compact from "lodash/compact";
 import pickBy from "lodash/pickBy";
 import setWith from "lodash/setWith";
+import intersection from "lodash/intersection";
 
 import {
   AndQueryCstChildren,
@@ -70,8 +71,15 @@ export class SearchSyntaxToAstVisitor<T>
 
   notQuery(ctx: NotQueryCstChildren): Filter<T> {
     if (ctx.Not != null) {
+      const subQuery = this.visit(ctx.atomicQuery);
+
       return {
-        $not: this.visit(ctx.atomicQuery),
+        $not:
+          typeof subQuery === "object" &&
+          intersection(Object.keys(subQuery), ["$and", "$or", "$not"]).length >
+            0
+            ? subQuery
+            : { $and: [subQuery] },
       };
     }
 
