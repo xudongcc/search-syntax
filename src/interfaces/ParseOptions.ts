@@ -1,6 +1,6 @@
-import { Attributes } from "./Attributes";
+import { FieldOptions } from "./FieldOptions";
 
 export interface ParseOptions {
-  attributes?: Attributes;
+  fields?: { [key: string]: FieldOptions };
   timezone?: string;
 }

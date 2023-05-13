@@ -13,11 +13,11 @@ describe("Parser", () => {
 
   describe("Global Expressions", () => {
     it("should parse simple id & value combos", () => {
-      expect(parse("hello")).toBeNull();
+      expect(parse("hello")).toMatchObject({});
 
       expect(
         parse("123456", {
-          attributes: {
+          fields: {
             id: { type: "bigint", searchable: true },
             tags: { type: "string", array: true, searchable: true },
             html: { type: "string", fulltext: true, searchable: true },
@@ -35,7 +35,7 @@ describe("Parser", () => {
 
       expect(
         parse("hello", {
-          attributes: {
+          fields: {
             id: { type: "bigint", searchable: true },
             tags: { type: "string", array: true, searchable: true },
             html: { type: "string", fulltext: true, searchable: true },
@@ -51,7 +51,7 @@ describe("Parser", () => {
 
       expect(
         parse("hello world", {
-          attributes: {
+          fields: {
             id: { type: "bigint", searchable: true },
             tags: { type: "string", array: true, searchable: true },
             html: { type: "string", fulltext: true, searchable: true },
@@ -77,7 +77,7 @@ describe("Parser", () => {
 
       expect(
         parse(`"hello world"`, {
-          attributes: {
+          fields: {
             id: { type: "bigint", searchable: true },
             tags: { type: "string", array: true, searchable: true },
             html: { type: "string", fulltext: true, searchable: true },
@@ -322,6 +322,51 @@ describe("Parser", () => {
       expect(parse(`post.id: 1`)).toMatchObject({
         post: { id: 1 },
       });
+    });
+  });
+});
+
+describe("Filterable", () => {
+  it("Filterable 1", () => {
+    expect(
+      parse("id:123 OR (id:234 tags:Hello)", {
+        fields: {
+          id: { type: "bigint", searchable: true, filterable: true },
+          tags: {
+            type: "string",
+            array: true,
+            searchable: true,
+            filterable: true,
+          },
+          html: { type: "string", fulltext: true, searchable: true },
+          createdAt: { type: "date", searchable: true },
+        },
+      })
+    ).toMatchObject({
+      $or: [
+        { id: 123n },
+        { $and: [{ id: 234n }, { tags: { $contains: ["Hello"] } }] },
+      ],
+    });
+  });
+
+  it("Filterable 2", () => {
+    expect(
+      parse("id:123 OR (tags:Hello html:World)", {
+        fields: {
+          id: { type: "bigint", searchable: true, filterable: true },
+          tags: {
+            type: "string",
+            array: true,
+            searchable: true,
+            filterable: true,
+          },
+          html: { type: "string", fulltext: true, searchable: true },
+          createdAt: { type: "date", searchable: true },
+        },
+      })
+    ).toMatchObject({
+      $or: [{ id: 123n }, { tags: { $contains: ["Hello"] } }],
     });
   });
 });

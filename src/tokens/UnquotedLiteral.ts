@@ -3,6 +3,6 @@ import { Value } from "./values";
 
 export const UnquotedLiteral = createToken({
   name: "UnquotedLiteral",
-  pattern: /[^\s:]+/,
+  pattern: /[^\s:()]+/,
   categories: [Value],
 });

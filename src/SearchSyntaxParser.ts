@@ -15,6 +15,7 @@ export class SearchSyntaxParser extends CstParser {
   constructor() {
     super(tokens);
 
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const $ = this;
 
     $.RULE("query", () => {
@@ -31,22 +32,18 @@ export class SearchSyntaxParser extends CstParser {
     });
 
     $.RULE("andQuery", () => {
-      $.SUBRULE($.notQuery, { LABEL: "left" });
+      $.SUBRULE($.atomicQuery, { LABEL: "left" });
 
       $.MANY(() => {
         $.OPTION(() => $.CONSUME(And));
-        $.SUBRULE2($.notQuery, { LABEL: "right" });
+        $.SUBRULE2($.atomicQuery, { LABEL: "right" });
       });
-    });
-
-    $.RULE("notQuery", () => {
-      $.OPTION(() => $.CONSUME(Not));
-      $.SUBRULE($.atomicQuery);
     });
 
     $.RULE("atomicQuery", () => {
       $.OR([
         { ALT: () => $.SUBRULE($.subQuery) },
+        { ALT: () => $.SUBRULE($.notQuery) },
         { ALT: () => $.SUBRULE($.term) },
       ]);
     });
@@ -55,6 +52,11 @@ export class SearchSyntaxParser extends CstParser {
       $.CONSUME(LeftBracket);
       $.SUBRULE($.query);
       $.CONSUME(RightBracket);
+    });
+
+    $.RULE("notQuery", () => {
+      $.CONSUME(Not);
+      $.SUBRULE($.atomicQuery);
     });
 
     $.RULE("term", () => {

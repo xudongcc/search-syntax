@@ -4,27 +4,30 @@ import setWith from "lodash/setWith";
 import intersection from "lodash/intersection";
 
 import {
-  AndQueryCstChildren,
-  AtomicQueryCstChildren,
-  ComparatorCstChildren,
-  FieldCstChildren,
-  ICstNodeVisitor,
-  NotQueryCstChildren,
-  OrQueryCstChildren,
-  QueryCstChildren,
-  SubQueryCstChildren,
-  TermCstChildren,
-  ValueCstChildren,
+  type AndQueryCstChildren,
+  type AtomicQueryCstChildren,
+  type ComparatorCstChildren,
+  type FieldCstChildren,
+  type ICstNodeVisitor,
+  type NotQueryCstChildren,
+  type OrQueryCstChildren,
+  type QueryCstChildren,
+  type SubQueryCstChildren,
+  type TermCstChildren,
+  type ValueCstChildren,
 } from "./cst";
 import {
-  AttributeOptions,
-  Attributes,
-  ComparatorOperators,
-  ConnectiveOperators,
-  Filter,
-  ParseOptions,
+  type ComparatorOperators,
+  type ConnectiveOperators,
+  type FieldOptions,
+  type Filter,
+  type ParseOptions,
 } from "./interfaces";
 import { SearchSyntaxParser } from "./SearchSyntaxParser";
+
+function filterEmpty(values: any[]): any[] {
+  return values.filter((value) => value !== null);
+}
 
 const parser = new SearchSyntaxParser();
 
@@ -43,30 +46,56 @@ export class SearchSyntaxToAstVisitor<T>
     return this.visit(ctx.orQuery);
   }
 
-  orQuery(ctx: OrQueryCstChildren): ConnectiveOperators<T> {
-    if (ctx.right != null) {
-      return {
-        $or: [
-          this.visit(ctx.left),
-          ...ctx.right.map((item) => this.visit(item)),
-        ],
-      };
+  orQuery(ctx: OrQueryCstChildren): ConnectiveOperators<T> | null {
+    if (typeof ctx.right === "undefined") {
+      return this.visit(ctx.left);
     }
 
-    return this.visit(ctx.left);
+    const result = filterEmpty([this.visit(ctx.left), this.visit(ctx.right)]);
+
+    if (result.length > 1) {
+      return { $or: result };
+    } else if (result.length === 1) {
+      return result[0];
+    } else {
+      return null;
+    }
   }
 
-  andQuery(ctx: AndQueryCstChildren): ConnectiveOperators<T> {
-    if (ctx.right != null) {
-      return {
-        $and: [
-          this.visit(ctx.left),
-          ...ctx.right.map((item) => this.visit(item)),
-        ],
-      };
+  andQuery(ctx: AndQueryCstChildren): ConnectiveOperators<T> | null {
+    if (typeof ctx.right === "undefined") {
+      return this.visit(ctx.left);
     }
 
-    return this.visit(ctx.left);
+    const result = filterEmpty([this.visit(ctx.left), this.visit(ctx.right)]);
+
+    if (result.length > 1) {
+      return { $and: result };
+    } else if (result.length === 1) {
+      return result[0];
+    } else {
+      return null;
+    }
+  }
+
+  atomicQuery(ctx: AtomicQueryCstChildren): Filter<T> | null {
+    if (typeof ctx.subQuery !== "undefined") {
+      return this.visit(ctx.subQuery);
+    }
+
+    if (typeof ctx.notQuery !== "undefined") {
+      return this.visit(ctx.notQuery);
+    }
+
+    if (typeof ctx.term !== "undefined") {
+      return this.visit(ctx.term);
+    }
+
+    return null;
+  }
+
+  subQuery(ctx: SubQueryCstChildren): Filter<T> {
+    return this.visit(ctx.query);
   }
 
   notQuery(ctx: NotQueryCstChildren): Filter<T> {
@@ -86,22 +115,6 @@ export class SearchSyntaxToAstVisitor<T>
     return this.visit(ctx.atomicQuery);
   }
 
-  atomicQuery(ctx: AtomicQueryCstChildren): Filter<T> | null {
-    if (ctx.subQuery != null) {
-      return this.visit(ctx.subQuery);
-    }
-
-    if (ctx.term != null) {
-      return this.visit(ctx.term);
-    }
-
-    return null;
-  }
-
-  subQuery(ctx: SubQueryCstChildren): Filter<T> {
-    return this.visit(ctx.query);
-  }
-
   term(
     ctx: TermCstChildren
   ): ComparatorOperators<T> | ConnectiveOperators<T> | null {
@@ -111,24 +124,24 @@ export class SearchSyntaxToAstVisitor<T>
     ) {
       const field = this.visit(ctx.field);
 
-      const attribute = this.options?.attributes?.[field];
+      const fieldOptions = this.options?.fields?.[field];
 
       if (
-        typeof this.options?.attributes !== "undefined" &&
-        attribute?.filterable === false
+        typeof this.options?.fields !== "undefined" &&
+        fieldOptions?.filterable !== true
       ) {
         return null;
       }
 
       const comparator = this.visit(ctx.comparator);
-      const value = this.visit(ctx.value, attribute?.type);
+      const value = this.visit(ctx.value, fieldOptions?.type);
 
       if (comparator === "$eq") {
-        if (attribute?.array === true) {
+        if (fieldOptions?.array === true) {
           return setWith({}, field, { $contains: [value] });
         }
 
-        if (attribute?.fulltext === true) {
+        if (fieldOptions?.fulltext === true) {
           return setWith({}, field, { $fulltext: value });
         }
 
@@ -137,15 +150,15 @@ export class SearchSyntaxToAstVisitor<T>
 
       return setWith({}, field, { [comparator]: value });
     } else {
-      const searchableAttributes: Attributes = pickBy(
-        this.options?.attributes,
-        (attribute) => attribute.searchable
+      const searchableFields = pickBy(
+        this.options?.fields,
+        (item) => item.searchable
       );
 
-      if (Object.keys(searchableAttributes).length > 0) {
+      if (Object.keys(searchableFields).length > 0) {
         return {
           $or: compact(
-            Object.entries(searchableAttributes).map(
+            Object.entries(searchableFields).map(
               ([field, { array, type, fulltext }]: [any, any]):
                 | Filter<T>
                 | undefined => {
@@ -193,7 +206,7 @@ export class SearchSyntaxToAstVisitor<T>
     }
   }
 
-  value(ctx: ValueCstChildren, type?: AttributeOptions["type"]): any {
+  value(ctx: ValueCstChildren, type?: FieldOptions["type"]): any {
     if (ctx.Value[0].tokenType.name === "Null") {
       return null;
     }

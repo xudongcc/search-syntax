@@ -1,4 +1,4 @@
-import { Filter, ParseOptions } from "./interfaces";
+import { type Filter, type ParseOptions } from "./interfaces";
 import { SearchSyntaxLexer } from "./SearchSyntaxLexer";
 import { SearchSyntaxParser } from "./SearchSyntaxParser";
 import { SearchSyntaxToAstVisitor } from "./SearchSyntaxToAstVisitor";
@@ -8,10 +8,10 @@ const parser = new SearchSyntaxParser();
 export * from "./interfaces";
 
 export function parse<T = Record<string, any>>(
-  query: string,
+  query?: string,
   options?: ParseOptions
 ): Filter<T> {
-  if (!query) {
+  if (typeof query === "undefined" || query.trim() === "") {
     return {};
   }
 
@@ -23,5 +23,5 @@ export function parse<T = Record<string, any>>(
     );
   }
 
-  return new SearchSyntaxToAstVisitor(options).visit(parser.query());
+  return new SearchSyntaxToAstVisitor(options).visit(parser.query()) ?? {};
 }

@@ -26,19 +26,9 @@ export interface AndQueryCstNode extends CstNode {
 }
 
 export type AndQueryCstChildren = {
-  left: NotQueryCstNode[];
+  left: AtomicQueryCstNode[];
   And?: IToken[];
-  right?: NotQueryCstNode[];
-};
-
-export interface NotQueryCstNode extends CstNode {
-  name: "notQuery";
-  children: NotQueryCstChildren;
-}
-
-export type NotQueryCstChildren = {
-  Not?: IToken[];
-  atomicQuery: AtomicQueryCstNode[];
+  right?: AtomicQueryCstNode[];
 };
 
 export interface AtomicQueryCstNode extends CstNode {
@@ -48,6 +38,7 @@ export interface AtomicQueryCstNode extends CstNode {
 
 export type AtomicQueryCstChildren = {
   subQuery?: SubQueryCstNode[];
+  notQuery?: NotQueryCstNode[];
   term?: TermCstNode[];
 };
 
@@ -60,6 +51,16 @@ export type SubQueryCstChildren = {
   LeftBracket: IToken[];
   query: QueryCstNode[];
   RightBracket: IToken[];
+};
+
+export interface NotQueryCstNode extends CstNode {
+  name: "notQuery";
+  children: NotQueryCstChildren;
+}
+
+export type NotQueryCstChildren = {
+  Not: IToken[];
+  atomicQuery: AtomicQueryCstNode[];
 };
 
 export interface TermCstNode extends CstNode {
@@ -104,9 +105,9 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   query(children: QueryCstChildren, param?: IN): OUT;
   orQuery(children: OrQueryCstChildren, param?: IN): OUT;
   andQuery(children: AndQueryCstChildren, param?: IN): OUT;
-  notQuery(children: NotQueryCstChildren, param?: IN): OUT;
   atomicQuery(children: AtomicQueryCstChildren, param?: IN): OUT;
   subQuery(children: SubQueryCstChildren, param?: IN): OUT;
+  notQuery(children: NotQueryCstChildren, param?: IN): OUT;
   term(children: TermCstChildren, param?: IN): OUT;
   field(children: FieldCstChildren, param?: IN): OUT;
   comparator(children: ComparatorCstChildren, param?: IN): OUT;

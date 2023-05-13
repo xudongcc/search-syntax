@@ -3,6 +3,6 @@ import { Value } from "./Value";
 
 export const QuotedString = createToken({
   name: "QuotedString",
-  pattern: /".*?"/,
+  pattern: /".*?"|'.*?'/,
   categories: [Value],
 });
