@@ -27,7 +27,7 @@ export class SearchSyntaxParser extends CstParser {
 
       $.MANY(() => {
         $.CONSUME(Or);
-        $.SUBRULE2($.andQuery, { LABEL: "right" });
+        $.SUBRULE2($.query, { LABEL: "right" });
       });
     });
 
@@ -36,7 +36,7 @@ export class SearchSyntaxParser extends CstParser {
 
       $.MANY(() => {
         $.OPTION(() => $.CONSUME(And));
-        $.SUBRULE2($.atomicQuery, { LABEL: "right" });
+        $.SUBRULE2($.query, { LABEL: "right" });
       });
     });
 

@@ -369,4 +369,44 @@ describe("Filterable", () => {
       $or: [{ id: 123n }, { tags: { $contains: ["Hello"] } }],
     });
   });
+
+  it("OR 两次以上", () => {
+    expect(
+      parse("id:1 OR id:2 OR id:3", {
+        fields: {
+          id: { type: "bigint", searchable: true, filterable: true },
+          tags: {
+            type: "string",
+            array: true,
+            searchable: true,
+            filterable: true,
+          },
+          html: { type: "string", fulltext: true, searchable: true },
+          createdAt: { type: "date", searchable: true },
+        },
+      })
+    ).toMatchObject({
+      $or: [{ id: 1n }, { $or: [{ id: 2n }, { id: 3n }] }],
+    });
+  });
+
+  it("AND 两次以上", () => {
+    expect(
+      parse("id:1 AND id:2 AND id:3", {
+        fields: {
+          id: { type: "bigint", searchable: true, filterable: true },
+          tags: {
+            type: "string",
+            array: true,
+            searchable: true,
+            filterable: true,
+          },
+          html: { type: "string", fulltext: true, searchable: true },
+          createdAt: { type: "date", searchable: true },
+        },
+      })
+    ).toMatchObject({
+      $and: [{ id: 1n }, { $and: [{ id: 2n }, { id: 3n }] }],
+    });
+  });
 });
