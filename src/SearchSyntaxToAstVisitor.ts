@@ -137,6 +137,16 @@ export class SearchSyntaxToAstVisitor<T>
       const value = this.visit(ctx.value, fieldOptions?.type);
 
       if (comparator === "$eq") {
+        if (typeof value === "string" && value.length > 1) {
+          if (value.startsWith("*")) {
+            return setWith({}, field, { $like: `%${value.slice(1)}` });
+          }
+
+          if (value.endsWith("*")) {
+            return setWith({}, field, { $like: `${value.slice(0, -1)}%` });
+          }
+        }
+
         if (fieldOptions?.array === true) {
           return setWith({}, field, { $contains: [value] });
         }

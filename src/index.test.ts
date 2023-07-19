@@ -409,4 +409,32 @@ describe("Filterable", () => {
       $and: [{ id: 1n }, { $and: [{ id: 2n }, { id: 3n }] }],
     });
   });
+
+  it("前缀搜索", () => {
+    expect(
+      parse("name: abc*", {
+        fields: {
+          name: {
+            type: "string",
+            searchable: true,
+            filterable: true,
+          },
+        },
+      })
+    ).toMatchObject({ name: { $like: "abc%" } });
+  });
+
+  it("后缀搜索", () => {
+    expect(
+      parse("name: *abc", {
+        fields: {
+          name: {
+            type: "string",
+            searchable: true,
+            filterable: true,
+          },
+        },
+      })
+    ).toMatchObject({ name: { $like: "%abc" } });
+  });
 });
