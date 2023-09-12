@@ -198,6 +198,10 @@ export class SearchSyntaxToAstVisitor<T>
   }
 
   field(ctx: FieldCstChildren): string {
+    if (typeof this.options?.aliases?.[ctx.Field[0].image] !== "undefined") {
+      return this.options.aliases[ctx.Field[0].image];
+    }
+
     return ctx.Field[0].image;
   }
 

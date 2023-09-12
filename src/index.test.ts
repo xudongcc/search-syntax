@@ -437,4 +437,23 @@ describe("Filterable", () => {
       })
     ).toMatchObject({ name: { $like: "%abc" } });
   });
+
+  it("字段别名", () => {
+    expect(
+      parse("John AND name: John", {
+        fields: {
+          username: {
+            type: "string",
+            searchable: true,
+            filterable: true,
+          },
+        },
+        aliases: {
+          name: "username",
+        },
+      })
+    ).toMatchObject({
+      $and: [{ $or: [{ username: "John" }] }, { username: "John" }],
+    });
+  });
 });

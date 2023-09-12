@@ -1,6 +1,7 @@
-import { FieldOptions } from "./FieldOptions";
+import { type FieldOptions } from "./FieldOptions";
 
 export interface ParseOptions {
-  fields?: { [key: string]: FieldOptions };
+  fields?: Record<string, FieldOptions>;
+  aliases?: Record<string, string>;
   timezone?: string;
 }
