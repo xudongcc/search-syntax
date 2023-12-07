@@ -13,4 +13,4 @@ export * from "./Null";
 export * from "./True";
 export * from "./QuotedString";
 
-export const tokens = [Value, Null, True, False, Number, Date, QuotedString];
+export const tokens = [Null, True, False, Number, Date, QuotedString, Value];
