@@ -4,9 +4,10 @@ import setWith from "lodash/setWith";
 import intersection from "lodash/intersection";
 
 import {
+  type EqualFieldTermCstChildren,
+  type GlobalTermCstChildren,
   type AndQueryCstChildren,
   type AtomicQueryCstChildren,
-  type ComparatorCstChildren,
   type FieldCstChildren,
   type ICstNodeVisitor,
   type NotQueryCstChildren,
@@ -15,6 +16,7 @@ import {
   type SubQueryCstChildren,
   type TermCstChildren,
   type ValueCstChildren,
+  type OtherFieldTermCstChildren,
 } from "./cst";
 import {
   type ComparatorOperators,
@@ -47,11 +49,7 @@ export class SearchSyntaxToAstVisitor<T>
   }
 
   orQuery(ctx: OrQueryCstChildren): ConnectiveOperators<T> | null {
-    if (typeof ctx.right === "undefined") {
-      return this.visit(ctx.left);
-    }
-
-    const result = filterEmpty([this.visit(ctx.left), this.visit(ctx.right)]);
+    const result = filterEmpty(ctx.andQuery.map((item) => this.visit(item)));
 
     if (result.length > 1) {
       return { $or: result };
@@ -63,11 +61,7 @@ export class SearchSyntaxToAstVisitor<T>
   }
 
   andQuery(ctx: AndQueryCstChildren): ConnectiveOperators<T> | null {
-    if (typeof ctx.right === "undefined") {
-      return this.visit(ctx.left);
-    }
-
-    const result = filterEmpty([this.visit(ctx.left), this.visit(ctx.right)]);
+    const result = filterEmpty(ctx.atomicQuery.map((item) => this.visit(item)));
 
     if (result.length > 1) {
       return { $and: result };
@@ -117,84 +111,140 @@ export class SearchSyntaxToAstVisitor<T>
 
   term(
     ctx: TermCstChildren
-  ): ComparatorOperators<T> | ConnectiveOperators<T> | null {
-    if (
-      typeof ctx.field !== "undefined" &&
-      typeof ctx.comparator !== "undefined"
-    ) {
-      const field = this.visit(ctx.field);
+  ): ComparatorOperators<T> | ConnectiveOperators<T> | undefined {
+    if (typeof ctx.equalFieldTerm !== "undefined") {
+      return this.visit(ctx.equalFieldTerm);
+    }
 
-      const fieldOptions = this.options?.fields?.[field];
+    if (typeof ctx.otherFieldTerm !== "undefined") {
+      return this.visit(ctx.otherFieldTerm);
+    }
 
-      if (
-        typeof this.options?.fields !== "undefined" &&
-        fieldOptions?.filterable !== true
-      ) {
-        return null;
-      }
+    if (typeof ctx.globalTerm !== "undefined") {
+      return this.visit(ctx.globalTerm);
+    }
+  }
 
-      const comparator = this.visit(ctx.comparator);
-      const value = this.visit(ctx.value, fieldOptions?.type);
+  globalTerm(ctx: GlobalTermCstChildren): ConnectiveOperators<T> | undefined {
+    const searchableFields = pickBy(
+      this.options?.fields,
+      (item) => item.searchable
+    );
 
-      if (comparator === "$eq") {
-        if (typeof value === "string" && value.length > 1) {
-          if (value.startsWith("*")) {
-            return setWith({}, field, { $like: `%${value.slice(1)}` });
+    if (Object.keys(searchableFields).length > 0) {
+      const filters = compact(
+        Object.entries(searchableFields).map(
+          ([field, { array, type, fulltext }]: [any, any]):
+            | Filter<T>
+            | undefined => {
+            const value = this.visit(ctx.value, type);
+
+            if (typeof value !== "undefined") {
+              if (array === true) {
+                return setWith({}, field, { $contains: [value] });
+              }
+
+              if (fulltext === true) {
+                return setWith({}, field, { $fulltext: value });
+              }
+
+              return setWith({}, field, value);
+            }
+
+            return undefined;
           }
-
-          if (value.endsWith("*")) {
-            return setWith({}, field, { $like: `${value.slice(0, -1)}%` });
-          }
-        }
-
-        if (fieldOptions?.array === true) {
-          return setWith({}, field, { $contains: [value] });
-        }
-
-        if (fieldOptions?.fulltext === true) {
-          return setWith({}, field, { $fulltext: value });
-        }
-
-        return setWith({}, field, value);
-      }
-
-      return setWith({}, field, { [comparator]: value });
-    } else {
-      const searchableFields = pickBy(
-        this.options?.fields,
-        (item) => item.searchable
+        )
       );
 
-      if (Object.keys(searchableFields).length > 0) {
-        return {
-          $or: compact(
-            Object.entries(searchableFields).map(
-              ([field, { array, type, fulltext }]: [any, any]):
-                | Filter<T>
-                | undefined => {
-                const value = this.visit(ctx.value, type);
+      if (filters.length === 0) {
+        return;
+      }
 
-                if (typeof value !== "undefined") {
-                  if (array === true) {
-                    return setWith({}, field, { $contains: [value] });
-                  }
+      return { $or: filters };
+    }
+  }
 
-                  if (fulltext === true) {
-                    return setWith({}, field, { $fulltext: value });
-                  }
+  equalFieldTerm(
+    children: EqualFieldTermCstChildren
+  ): ComparatorOperators<T> | undefined {
+    const field = this.visit(children.field);
+    const fieldOptions = this.options?.fields?.[field];
 
-                  return setWith({}, field, value);
-                }
+    if (
+      typeof this.options?.fields !== "undefined" &&
+      fieldOptions?.filterable !== true
+    ) {
+      return;
+    }
 
-                return undefined;
-              }
-            )
-          ),
-        };
+    const values = children.value.map((item) =>
+      this.visit(item, fieldOptions?.type)
+    );
+    const value = values[0];
+
+    if (values.length === 0) {
+      return;
+    }
+
+    if (fieldOptions?.array === true) {
+      return setWith({}, field, { $contains: values });
+    }
+
+    if (values.length > 1) {
+      return setWith({}, field, { $in: values });
+    }
+
+    if (typeof value === "string" && value.length > 1) {
+      if (value.startsWith("*")) {
+        return setWith({}, field, { $like: `%${value.slice(1)}` });
+      }
+
+      if (value.endsWith("*")) {
+        return setWith({}, field, { $like: `${value.slice(0, -1)}%` });
       }
     }
 
-    return null;
+    if (fieldOptions?.fulltext === true) {
+      return setWith({}, field, { $fulltext: value });
+    }
+
+    return setWith({}, field, value);
+  }
+
+  otherFieldTerm(
+    children: OtherFieldTermCstChildren
+  ): ComparatorOperators<T> | undefined {
+    const field = this.visit(children.field);
+    const fieldOptions = this.options?.fields?.[field];
+
+    if (
+      typeof this.options?.fields !== "undefined" &&
+      fieldOptions?.filterable !== true
+    ) {
+      return;
+    }
+
+    const value = this.visit(children.value, fieldOptions?.type);
+
+    if (typeof value === "undefined") {
+      return;
+    }
+
+    if (typeof children.LessThan !== "undefined") {
+      return { [field]: { $lt: value } };
+    }
+
+    if (typeof children.LessThanOrEqual !== "undefined") {
+      return { [field]: { $lte: value } };
+    }
+
+    if (typeof children.GreaterThan !== "undefined") {
+      return { [field]: { $gt: value } };
+    }
+
+    if (typeof children.GreaterThanOrEqual !== "undefined") {
+      return { [field]: { $gte: value } };
+    }
   }
 
   field(ctx: FieldCstChildren): string {
@@ -205,23 +255,14 @@ export class SearchSyntaxToAstVisitor<T>
     return ctx.Field[0].image;
   }
 
-  comparator(children: ComparatorCstChildren): string {
-    switch (children.Comparator[0].tokenType.name) {
-      case "GreaterThan":
-        return "$gt";
-      case "GreaterThanOrEqual":
-        return "$gte";
-      case "LessThan":
-        return "$lt";
-      case "LessThanOrEqual":
-        return "$lte";
-      default:
-        return "$eq";
-    }
-  }
+  value(children: ValueCstChildren, type?: FieldOptions["type"]): any {
+    const item = children.Value[0];
 
-  value(ctx: ValueCstChildren, type?: FieldOptions["type"]): any {
-    if (ctx.Value[0].tokenType.name === "Null") {
+    if (typeof item === "undefined") {
+      return;
+    }
+
+    if (item?.tokenType?.name === "Null") {
       return null;
     }
 
@@ -229,45 +270,45 @@ export class SearchSyntaxToAstVisitor<T>
       try {
         switch (type) {
           case "string":
-            return ctx.Value[0].tokenType.name === "QuotedString"
-              ? ctx.Value[0].image.slice(1, -1)
-              : ctx.Value[0].image;
+            return item.tokenType.name === "QuotedString"
+              ? item.image.slice(1, -1)
+              : item.image;
           case "number":
-            return Number(ctx.Value[0].image);
+            return Number(item.image);
           case "bigint":
-            return BigInt(ctx.Value[0].image);
+            return BigInt(item.image);
           case "boolean":
-            return ctx.Value[0].image === "true";
+            return item.image === "true";
           case "date": {
-            const date = new Date(ctx.Value[0].image);
+            const date = new Date(item.image);
             return isNaN(date.getTime()) ? undefined : date;
           }
         }
       } catch (err) {
-        return undefined;
+        return;
       }
     }
 
-    switch (ctx.Value[0].tokenType.name) {
+    switch (item.tokenType.name) {
       case "True":
         return true;
       case "False":
         return false;
       case "Number":
         // eslint-disable-next-line no-case-declarations
-        const value = Number(ctx.Value[0].image);
+        const value = Number(item.image);
 
         return Number.isNaN(value) ||
           value > Number.MAX_SAFE_INTEGER ||
           value < Number.MIN_SAFE_INTEGER
-          ? BigInt(ctx.Value[0].image)
+          ? BigInt(item.image)
           : value;
       case "Date":
-        return new Date(ctx.Value[0].image);
+        return new Date(item.image);
       case "QuotedString":
-        return ctx.Value[0].image.slice(1, -1);
+        return item.image.slice(1, -1);
       default:
-        return ctx.Value[0].image;
+        return item.image;
     }
   }
 }

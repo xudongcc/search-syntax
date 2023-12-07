@@ -15,9 +15,8 @@ export interface OrQueryCstNode extends CstNode {
 }
 
 export type OrQueryCstChildren = {
-  left: AndQueryCstNode[];
+  andQuery: (AndQueryCstNode)[];
   Or?: IToken[];
-  right?: AndQueryCstNode[];
 };
 
 export interface AndQueryCstNode extends CstNode {
@@ -26,9 +25,8 @@ export interface AndQueryCstNode extends CstNode {
 }
 
 export type AndQueryCstChildren = {
-  left: AtomicQueryCstNode[];
+  atomicQuery: (AtomicQueryCstNode)[];
   And?: IToken[];
-  right?: AtomicQueryCstNode[];
 };
 
 export interface AtomicQueryCstNode extends CstNode {
@@ -69,8 +67,43 @@ export interface TermCstNode extends CstNode {
 }
 
 export type TermCstChildren = {
-  field?: FieldCstNode[];
-  comparator?: ComparatorCstNode[];
+  equalFieldTerm?: EqualFieldTermCstNode[];
+  otherFieldTerm?: OtherFieldTermCstNode[];
+  globalTerm?: GlobalTermCstNode[];
+};
+
+export interface EqualFieldTermCstNode extends CstNode {
+  name: "equalFieldTerm";
+  children: EqualFieldTermCstChildren;
+}
+
+export type EqualFieldTermCstChildren = {
+  field: FieldCstNode[];
+  Equal: IToken[];
+  value: ValueCstNode[];
+  Comma?: IToken[];
+};
+
+export interface OtherFieldTermCstNode extends CstNode {
+  name: "otherFieldTerm";
+  children: OtherFieldTermCstChildren;
+}
+
+export type OtherFieldTermCstChildren = {
+  field: FieldCstNode[];
+  LessThan?: IToken[];
+  LessThanOrEqual?: IToken[];
+  GreaterThan?: IToken[];
+  GreaterThanOrEqual?: IToken[];
+  value: ValueCstNode[];
+};
+
+export interface GlobalTermCstNode extends CstNode {
+  name: "globalTerm";
+  children: GlobalTermCstChildren;
+}
+
+export type GlobalTermCstChildren = {
   value: ValueCstNode[];
 };
 
@@ -81,15 +114,6 @@ export interface FieldCstNode extends CstNode {
 
 export type FieldCstChildren = {
   Field: IToken[];
-};
-
-export interface ComparatorCstNode extends CstNode {
-  name: "comparator";
-  children: ComparatorCstChildren;
-}
-
-export type ComparatorCstChildren = {
-  Comparator: IToken[];
 };
 
 export interface ValueCstNode extends CstNode {
@@ -109,7 +133,9 @@ export interface ICstNodeVisitor<IN, OUT> extends ICstVisitor<IN, OUT> {
   subQuery(children: SubQueryCstChildren, param?: IN): OUT;
   notQuery(children: NotQueryCstChildren, param?: IN): OUT;
   term(children: TermCstChildren, param?: IN): OUT;
+  equalFieldTerm(children: EqualFieldTermCstChildren, param?: IN): OUT;
+  otherFieldTerm(children: OtherFieldTermCstChildren, param?: IN): OUT;
+  globalTerm(children: GlobalTermCstChildren, param?: IN): OUT;
   field(children: FieldCstChildren, param?: IN): OUT;
-  comparator(children: ComparatorCstChildren, param?: IN): OUT;
   value(children: ValueCstChildren, param?: IN): OUT;
 }

@@ -4,9 +4,16 @@ import { tokens } from "./tokens";
 
 import { And, Not, Or } from "./tokens/connectives";
 import { LeftBracket, RightBracket } from "./tokens/brackets";
-import { Comparator } from "./tokens/comparators";
+import {
+  Equal,
+  GreaterThan,
+  GreaterThanOrEqual,
+  LessThan,
+  LessThanOrEqual,
+} from "./tokens/comparators";
 import { Field } from "./tokens/fields";
 import { Value } from "./tokens/values";
+import { Comma } from "./tokens/Comma";
 
 export class SearchSyntaxParser extends CstParser {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,20 +30,20 @@ export class SearchSyntaxParser extends CstParser {
     });
 
     $.RULE("orQuery", () => {
-      $.SUBRULE($.andQuery, { LABEL: "left" });
+      $.SUBRULE1($.andQuery);
 
       $.MANY(() => {
         $.CONSUME(Or);
-        $.SUBRULE2($.query, { LABEL: "right" });
+        $.SUBRULE2($.andQuery);
       });
     });
 
     $.RULE("andQuery", () => {
-      $.SUBRULE($.atomicQuery, { LABEL: "left" });
+      $.SUBRULE1($.atomicQuery);
 
       $.MANY(() => {
         $.OPTION(() => $.CONSUME(And));
-        $.SUBRULE2($.query, { LABEL: "right" });
+        $.SUBRULE2($.atomicQuery);
       });
     });
 
@@ -60,20 +67,41 @@ export class SearchSyntaxParser extends CstParser {
     });
 
     $.RULE("term", () => {
-      $.OPTION(() => {
-        $.SUBRULE($.field);
-        $.SUBRULE($.comparator);
-      });
+      $.OR([
+        { ALT: () => $.SUBRULE($.equalFieldTerm) },
+        { ALT: () => $.SUBRULE($.otherFieldTerm) },
+        { ALT: () => $.SUBRULE($.globalTerm) },
+      ]);
+    });
 
+    $.RULE("equalFieldTerm", () => {
+      $.SUBRULE($.field);
+      $.CONSUME(Equal);
+      $.AT_LEAST_ONE_SEP({
+        SEP: Comma,
+        DEF: () => {
+          $.SUBRULE($.value);
+        },
+      });
+    });
+
+    $.RULE("otherFieldTerm", () => {
+      $.SUBRULE($.field);
+      $.OR([
+        { ALT: () => $.CONSUME(LessThan) },
+        { ALT: () => $.CONSUME(LessThanOrEqual) },
+        { ALT: () => $.CONSUME(GreaterThan) },
+        { ALT: () => $.CONSUME(GreaterThanOrEqual) },
+      ]);
+      $.SUBRULE($.value);
+    });
+
+    $.RULE("globalTerm", () => {
       $.SUBRULE($.value);
     });
 
     $.RULE("field", () => {
       $.CONSUME(Field);
-    });
-
-    $.RULE("comparator", () => {
-      $.CONSUME(Comparator);
     });
 
     $.RULE("value", () => {
