@@ -7,11 +7,11 @@
     "email": "me@xudong.cc",
     "url": "https://www.xudong.cc/"
   },
-  "bugs": "https://github.com/xudongdev/search-syntax/issues",
-  "homepage": "https://github.com/xudongdev/search-syntax#readme",
+  "bugs": "https://github.com/d4rkcr0w/search-syntax/issues",
+  "homepage": "https://github.com/d4rkcr0w/search-syntax#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xudongdev/search-syntax.git"
+    "url": "https://github.com/d4rkcr0w/search-syntax.git"
   },
   "license": "MIT",
   "main": "dist/index.js",
