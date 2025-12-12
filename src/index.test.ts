@@ -1,4 +1,4 @@
-import { parse } from ".";
+import { parse } from "./index.js";
 
 describe("Field Search", () => {
   it("should parse simple id & value combos", () => {

@@ -1,5 +1,5 @@
-export * from "./FieldOptions";
-export * from "./ParseOptions";
+export * from "./FieldOptions.js";
+export * from "./ParseOptions.js";
 
 export type AlternativeType<T> = T extends ReadonlyArray<infer U> ? T | U : T;
 

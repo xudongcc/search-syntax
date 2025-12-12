@@ -1,60 +1,75 @@
 {
   "name": "search-syntax",
   "version": "0.0.0-development",
+  "type": "module",
   "description": "A search syntax similar to Github, Shopify, Gmail.",
   "author": {
     "name": "Xudong Huang",
-    "email": "me@xudong.cc",
-    "url": "https://www.xudong.cc/"
+    "email": "me@huangxudong.com",
+    "url": "https://www.huangxudong.com/"
   },
-  "bugs": "https://github.com/d4rkcr0w/search-syntax/issues",
-  "homepage": "https://github.com/d4rkcr0w/search-syntax#readme",
+  "bugs": "https://github.com/xudongcc/search-syntax/issues",
+  "homepage": "https://github.com/xudongcc/search-syntax#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/d4rkcr0w/search-syntax.git"
+    "url": "https://github.com/xudongcc/search-syntax.git"
   },
   "license": "MIT",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
   "scripts": {
-    "build": "rm -rf dist && npm run generate-cst-dts && tsc",
+    "build": "rm -rf dist && tsdown && node generate-cst-dts.js",
     "prepublish": "npm run build",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
+    "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
+    "test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
+    "test:cov": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
     "lint": "eslint src/**/**.ts",
     "lint:fix": "eslint src/**/**.ts --fix",
     "generate-cst-dts": "ts-node src/generateCstDts.ts",
     "semantic-release": "semantic-release"
   },
   "dependencies": {
-    "chevrotain": "^10.5.0",
-    "lodash": "^4.17.21"
+    "chevrotain": "^11.0.3",
+    "lodash-es": "^4.17.21"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.11",
-    "@types/lodash": "^4.14.202",
-    "@types/node": "^20.10.3",
-    "@typescript-eslint/eslint-plugin": "^6.13.2",
-    "@typescript-eslint/parser": "^6.13.2",
-    "commitizen": "^4.3.0",
+    "@types/jest": "^30.0.0",
+    "@types/lodash-es": "^4.17.12",
+    "@types/node": "^25.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
+    "commitizen": "^4.3.1",
     "cz-conventional-changelog": "^3.3.0",
-    "eslint": "^8.55.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-config-standard-with-typescript": "^40.0.0",
-    "eslint-plugin-import": "^2.29.0",
-    "eslint-plugin-jest": "^27.6.0",
-    "eslint-plugin-n": "^16.3.1",
-    "eslint-plugin-prettier": "^5.0.1",
-    "eslint-plugin-promise": "^6.1.1",
-    "husky": "^8.0.3",
-    "jest": "^29.7.0",
-    "lint-staged": "^15.2.0",
-    "prettier": "^3.1.0",
-    "semantic-release": "^22.0.10",
-    "ts-jest": "^29.1.1",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.3.3"
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-config-standard-with-typescript": "^43.0.1",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jest": "^29.2.1",
+    "eslint-plugin-n": "^17.23.1",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-promise": "^7.2.1",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
+    "semantic-release": "^25.0.2",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "tsdown": "^0.17.3",
+    "typescript": "^5.9.3"
   },
   "husky": {
     "hooks": {
@@ -80,7 +95,18 @@
     ],
     "testRegex": ".test.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
+    },
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "coverageDirectory": "./coverage",
     "testEnvironment": "node"

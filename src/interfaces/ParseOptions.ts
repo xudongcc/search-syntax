@@ -1,4 +1,4 @@
-import { type FieldOptions } from "./FieldOptions";
+import { type FieldOptions } from "./FieldOptions.js";
 
 export interface ParseOptions {
   fields?: Record<string, FieldOptions>;

@@ -1,27 +1,8 @@
-import { type Filter, type ParseOptions } from "./interfaces";
-import { SearchSyntaxLexer } from "./SearchSyntaxLexer";
-import { SearchSyntaxParser } from "./SearchSyntaxParser";
-import { SearchSyntaxToAstVisitor } from "./SearchSyntaxToAstVisitor";
-
-const parser = new SearchSyntaxParser();
-
-export * from "./interfaces";
-
-export function parse<T = Record<string, any>>(
-  query?: string,
-  options?: ParseOptions
-): Filter<T> {
-  if (typeof query === "undefined" || query.trim() === "") {
-    return {};
-  }
-
-  parser.input = SearchSyntaxLexer.tokenize(query.trim()).tokens;
-
-  if (parser.errors.length > 0) {
-    throw Error(
-      "Sad sad panda, parsing errors detected!\n" + parser.errors[0].message
-    );
-  }
-
-  return new SearchSyntaxToAstVisitor(options).visit(parser.query()) ?? {};
-}
+export * from "./lexer.js";
+export * from "./parser.js";
+export * from "./interfaces/index.js";
+export * from "./enums/index.js";
+export * from "./cst-visitor.js";
+export type * from "./cst.js";
+export * from "./parse.js";
+export * from "./tokens.js";

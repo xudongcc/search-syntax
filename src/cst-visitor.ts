@@ -1,7 +1,7 @@
-import compact from "lodash/compact";
-import pickBy from "lodash/pickBy";
-import setWith from "lodash/setWith";
-import intersection from "lodash/intersection";
+import compact from "lodash-es/compact.js";
+import intersection from "lodash-es/intersection.js";
+import pickBy from "lodash-es/pickBy.js";
+import setWith from "lodash-es/setWith.js";
 
 import {
   type EqualFieldTermCstChildren,
@@ -17,25 +17,23 @@ import {
   type TermCstChildren,
   type ValueCstChildren,
   type OtherFieldTermCstChildren,
-} from "./cst";
+} from "./cst.js";
 import {
   type ComparatorOperators,
   type ConnectiveOperators,
   type FieldOptions,
   type Filter,
   type ParseOptions,
-} from "./interfaces";
-import { SearchSyntaxParser } from "./SearchSyntaxParser";
+} from "./interfaces/index.js";
+import { searchSyntaxParser } from "./parser.js";
 
 function filterEmpty(values: any[]): any[] {
   return values.filter((value) => value !== null);
 }
 
-const parser = new SearchSyntaxParser();
+const BaseCstVisitor = searchSyntaxParser.getBaseCstVisitorConstructor();
 
-const BaseCstVisitor = parser.getBaseCstVisitorConstructor();
-
-export class SearchSyntaxToAstVisitor<T>
+export class SearchSyntaxCstVisitor<T>
   extends BaseCstVisitor
   implements ICstNodeVisitor<any, any>
 {
