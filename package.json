@@ -1,6 +1,7 @@
 {
   "name": "search-syntax",
   "version": "0.0.0-development",
+  "packageManager": "pnpm@10.11.0",
   "type": "module",
   "description": "A search syntax similar to Github, Shopify, Gmail.",
   "author": {
