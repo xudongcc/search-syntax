@@ -13,7 +13,7 @@
   "homepage": "https://github.com/xudongcc/search-syntax#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/xudongcc/search-syntax.git"
+    "url": "git+https://github.com/xudongcc/search-syntax.git"
   },
   "license": "MIT",
   "main": "dist/index.cjs",
