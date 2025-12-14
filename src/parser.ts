@@ -1,20 +1,39 @@
 import { CstParser } from "chevrotain";
 
-import { tokens } from "./tokens";
-
-import { And, Not, Or } from "./tokens/connectives";
-import { LeftBracket, RightBracket } from "./tokens/brackets";
 import {
-  Equal,
-  GreaterThan,
-  GreaterThanOrEqual,
-  LessThan,
-  LessThanOrEqual,
-} from "./tokens/comparators";
-import { Field } from "./tokens/fields";
-import { Value } from "./tokens/values";
-import { Comma } from "./tokens/Comma";
+  tokens,
+  AndToken,
+  NotToken,
+  OrToken,
+  LeftBracketToken,
+  RightBracketToken,
+  EqualToken,
+  GreaterThanToken,
+  GreaterThanOrEqualToken,
+  LessThanToken,
+  LessThanOrEqualToken,
+  FieldToken,
+  ValueToken,
+  CommaToken,
+} from "./tokens.js";
 
+/**
+ * CST (Concrete Syntax Tree) parser for search syntax.
+ * Parses tokenized input into a concrete syntax tree that can be visited
+ * to produce a filter query object.
+ *
+ * Grammar rules:
+ * - query: orQuery
+ * - orQuery: andQuery (OR andQuery)*
+ * - andQuery: atomicQuery (AND? atomicQuery)*
+ * - atomicQuery: subQuery | notQuery | term
+ * - subQuery: '(' query ')'
+ * - notQuery: NOT atomicQuery
+ * - term: equalFieldTerm | otherFieldTerm | globalTerm
+ * - equalFieldTerm: field ':' value (',' value)*
+ * - otherFieldTerm: field (':>' | ':>=' | ':<' | ':<=') value
+ * - globalTerm: value
+ */
 export class SearchSyntaxParser extends CstParser {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
@@ -33,7 +52,7 @@ export class SearchSyntaxParser extends CstParser {
       $.SUBRULE1($.andQuery);
 
       $.MANY(() => {
-        $.CONSUME(Or);
+        $.CONSUME(OrToken);
         $.SUBRULE2($.andQuery);
       });
     });
@@ -42,7 +61,7 @@ export class SearchSyntaxParser extends CstParser {
       $.SUBRULE1($.atomicQuery);
 
       $.MANY(() => {
-        $.OPTION(() => $.CONSUME(And));
+        $.OPTION(() => $.CONSUME(AndToken));
         $.SUBRULE2($.atomicQuery);
       });
     });
@@ -56,13 +75,13 @@ export class SearchSyntaxParser extends CstParser {
     });
 
     $.RULE("subQuery", () => {
-      $.CONSUME(LeftBracket);
+      $.CONSUME(LeftBracketToken);
       $.SUBRULE($.query);
-      $.CONSUME(RightBracket);
+      $.CONSUME(RightBracketToken);
     });
 
     $.RULE("notQuery", () => {
-      $.CONSUME(Not);
+      $.CONSUME(NotToken);
       $.SUBRULE($.atomicQuery);
     });
 
@@ -76,9 +95,9 @@ export class SearchSyntaxParser extends CstParser {
 
     $.RULE("equalFieldTerm", () => {
       $.SUBRULE($.field);
-      $.CONSUME(Equal);
+      $.CONSUME(EqualToken);
       $.AT_LEAST_ONE_SEP({
-        SEP: Comma,
+        SEP: CommaToken,
         DEF: () => {
           $.SUBRULE($.value);
         },
@@ -88,10 +107,10 @@ export class SearchSyntaxParser extends CstParser {
     $.RULE("otherFieldTerm", () => {
       $.SUBRULE($.field);
       $.OR([
-        { ALT: () => $.CONSUME(LessThan) },
-        { ALT: () => $.CONSUME(LessThanOrEqual) },
-        { ALT: () => $.CONSUME(GreaterThan) },
-        { ALT: () => $.CONSUME(GreaterThanOrEqual) },
+        { ALT: () => $.CONSUME(LessThanToken) },
+        { ALT: () => $.CONSUME(LessThanOrEqualToken) },
+        { ALT: () => $.CONSUME(GreaterThanToken) },
+        { ALT: () => $.CONSUME(GreaterThanOrEqualToken) },
       ]);
       $.SUBRULE($.value);
     });
@@ -101,13 +120,19 @@ export class SearchSyntaxParser extends CstParser {
     });
 
     $.RULE("field", () => {
-      $.CONSUME(Field);
+      $.CONSUME(FieldToken);
     });
 
     $.RULE("value", () => {
-      $.CONSUME(Value);
+      $.CONSUME(ValueToken);
     });
 
     this.performSelfAnalysis();
   }
 }
+
+/**
+ * Singleton parser instance for search syntax.
+ * Reuse this instance for parsing multiple queries.
+ */
+export const searchSyntaxParser = new SearchSyntaxParser();
