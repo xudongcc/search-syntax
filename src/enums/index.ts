@@ -1,3 +1,3 @@
-export * from "./Comparator";
-export * from "./Connective";
-export * from "./NodeType";
+export * from "./Comparator.js";
+export * from "./Connective.js";
+export * from "./NodeType.js";
