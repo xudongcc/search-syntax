@@ -229,12 +229,22 @@ export class SearchSyntaxCstVisitor<T>
 
     const filters = compact(
       Object.entries(searchableFields).map(
-        ([field, { array, type }]: [any, any]): Filter<T> | undefined => {
-          const value = this.visit(ctx.value, type);
+        ([field, fieldOptions]: [any, any]): Filter<T> | undefined => {
+          const value = this.visit(ctx.value, fieldOptions.type);
 
           if (typeof value !== "undefined") {
-            if (array === true) {
+            if (fieldOptions.array === true) {
               return setWith({}, field, { $contains: [value] });
+            }
+
+            // Use $fulltext for string fields with fulltext: true
+            if (
+              fieldOptions.type === "string" &&
+              "fulltext" in fieldOptions &&
+              fieldOptions.fulltext === true &&
+              typeof value === "string"
+            ) {
+              return setWith({}, field, { $fulltext: value });
             }
 
             return setWith({}, field, value);
@@ -287,6 +297,16 @@ export class SearchSyntaxCstVisitor<T>
       if (value.endsWith("*")) {
         return setWith({}, field, { $like: `${value.slice(0, -1)}%` });
       }
+    }
+
+    // Use $fulltext for string fields with fulltext: true
+    if (
+      fieldOptions?.type === "string" &&
+      "fulltext" in fieldOptions &&
+      fieldOptions.fulltext === true &&
+      typeof value === "string"
+    ) {
+      return setWith({}, field, { $fulltext: value });
     }
 
     return setWith({}, field, value);

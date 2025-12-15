@@ -76,6 +76,12 @@ export interface ComparisonOperators<T = unknown> {
    * Use `%` as wildcard character.
    */
   $like?: string;
+
+  /**
+   * Performs full-text search on string fields.
+   * Used when field is configured with `fulltext: true`.
+   */
+  $fulltext?: string;
 }
 
 /**

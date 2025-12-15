@@ -912,6 +912,120 @@ describe("Combined Scenarios", () => {
 });
 
 // =============================================================================
+// Fulltext Search
+// =============================================================================
+
+describe("Fulltext Search", () => {
+  describe("Field Search with fulltext option", () => {
+    it("should use $fulltext operator when fulltext is true", () => {
+      const result = parse("title:hello", {
+        fields: { title: { type: "string", fulltext: true } },
+      });
+      expect(result).toEqual({
+        title: { $fulltext: "hello" },
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should use $fulltext operator with quoted string", () => {
+      const result = parse('title:"hello world"', {
+        fields: { title: { type: "string", fulltext: true } },
+      });
+      expect(result).toEqual({
+        title: { $fulltext: "hello world" },
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should use direct value when fulltext is false", () => {
+      const result = parse("status:active", {
+        fields: { status: { type: "string", fulltext: false } },
+      });
+      expect(result).toEqual({
+        status: "active",
+      } satisfies Filter<{ status: string }>);
+    });
+
+    it("should use direct value when fulltext is not set", () => {
+      const result = parse("status:active", {
+        fields: { status: { type: "string" } },
+      });
+      expect(result).toEqual({
+        status: "active",
+      } satisfies Filter<{ status: string }>);
+    });
+
+    it("should still use $like for wildcard search even with fulltext", () => {
+      const result = parse("title:hello*", {
+        fields: { title: { type: "string", fulltext: true } },
+      });
+      expect(result).toEqual({
+        title: { $like: "hello%" },
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should still use $in for multiple values even with fulltext", () => {
+      const result = parse("title:hello,world", {
+        fields: { title: { type: "string", fulltext: true } },
+      });
+      expect(result).toEqual({
+        title: { $in: ["hello", "world"] },
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should still use $contains for array field even with fulltext", () => {
+      const result = parse("tags:javascript", {
+        fields: { tags: { type: "string", fulltext: true, array: true } },
+      });
+      expect(result).toEqual({
+        tags: { $contains: ["javascript"] },
+      } satisfies Filter<{ tags: string[] }>);
+    });
+  });
+
+  describe("Global Search with fulltext option", () => {
+    it("should use $fulltext for searchable field with fulltext", () => {
+      const result = parse("hello", {
+        fields: { title: { type: "string", searchable: true, fulltext: true } },
+      });
+      expect(result).toEqual({
+        $or: [{ title: { $fulltext: "hello" } }],
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should use direct value for searchable field without fulltext", () => {
+      const result = parse("hello", {
+        fields: { status: { type: "string", searchable: true } },
+      });
+      expect(result).toEqual({
+        $or: [{ status: "hello" }],
+      } satisfies Filter<{ status: string }>);
+    });
+
+    it("should mix fulltext and non-fulltext fields in global search", () => {
+      const result = parse("hello", {
+        fields: {
+          title: { type: "string", searchable: true, fulltext: true },
+          status: { type: "string", searchable: true },
+        },
+      });
+      expect(result).toEqual({
+        $or: [{ title: { $fulltext: "hello" } }, { status: "hello" }],
+      } satisfies Filter<{ title: string; status: string }>);
+    });
+
+    it("should use $contains for searchable array field even with fulltext", () => {
+      const result = parse("hello", {
+        fields: {
+          tags: { type: "string", searchable: true, fulltext: true, array: true },
+        },
+      });
+      expect(result).toEqual({
+        $or: [{ tags: { $contains: ["hello"] } }],
+      } satisfies Filter<{ tags: string[] }>);
+    });
+  });
+});
+
+// =============================================================================
 // Parser Error Handling
 // =============================================================================
 
