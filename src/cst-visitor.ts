@@ -260,6 +260,11 @@ export class SearchSyntaxCstVisitor<T>
       throw new NoSearchableFieldsError(String(term));
     }
 
+    // Optimize: return single filter directly instead of wrapping in $or
+    if (filters.length === 1) {
+      return filters[0] as LogicalOperators<T>;
+    }
+
     return { $or: filters };
   }
 

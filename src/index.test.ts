@@ -120,7 +120,7 @@ describe("Global Search", () => {
       },
     });
     expect(result).toEqual({
-      $or: [{ tags: { $contains: ["hello"] } }],
+      tags: { $contains: ["hello"] },
     } satisfies Filter<{ tags: string[] }>);
   });
 
@@ -143,8 +143,8 @@ describe("Global Search", () => {
     });
     expect(result).toEqual({
       $and: [
-        { $or: [{ tags: { $contains: ["hello"] } }] },
-        { $or: [{ tags: { $contains: ["world"] } }] },
+        { tags: { $contains: ["hello"] } },
+        { tags: { $contains: ["world"] } },
       ],
     } satisfies Filter<{ tags: string[] }>);
   });
@@ -156,7 +156,7 @@ describe("Global Search", () => {
       },
     });
     expect(result).toEqual({
-      $or: [{ tags: { $contains: ["hello world"] } }],
+      tags: { $contains: ["hello world"] },
     } satisfies Filter<{ tags: string[] }>);
   });
 
@@ -167,8 +167,20 @@ describe("Global Search", () => {
       },
     });
     expect(result).toEqual({
-      $or: [{ status: "active" }],
+      status: "active",
     } satisfies Filter<{ status: string }>);
+  });
+
+  it("should use $or when multiple searchable fields match", () => {
+    const result = parse("hello", {
+      fields: {
+        title: { type: "string", searchable: true },
+        description: { type: "string", searchable: true },
+      },
+    });
+    expect(result).toEqual({
+      $or: [{ title: "hello" }, { description: "hello" }],
+    } satisfies Filter<{ title: string; description: string }>);
   });
 });
 
@@ -548,6 +560,13 @@ describe("Logical Operators", () => {
         },
       } satisfies Filter<{ a: number; b: number }>);
     });
+
+    it("should use $and when all conditions have special operators", () => {
+      // Both conditions contain $not, so neither can be merged
+      expect(parse("-a:1 -b:2")).toEqual({
+        $and: [{ $not: { a: 1 } }, { $not: { b: 2 } }],
+      } satisfies Filter<{ a: number; b: number }>);
+    });
   });
 
   describe("Operator Precedence", () => {
@@ -755,7 +774,7 @@ describe("Field Aliases", () => {
     });
     // Both conditions use same key "username", so they remain in $and
     expect(result).toEqual({
-      $and: [{ username: "john" }, { $or: [{ username: "john" }] }],
+      $and: [{ username: "john" }, { username: "john" }],
     } satisfies Filter<{ username: string }>);
   });
 
@@ -897,7 +916,8 @@ describe("Combined Scenarios", () => {
       },
     });
     expect(result).toEqual({
-      $and: [{ tag: "javascript" }, { $or: [{ title: "typescript" }] }],
+      tag: "javascript",
+      title: "typescript",
     } satisfies Filter<{ title: string; tag: string }>);
   });
 
@@ -987,7 +1007,7 @@ describe("Fulltext Search", () => {
         fields: { title: { type: "string", searchable: true, fulltext: true } },
       });
       expect(result).toEqual({
-        $or: [{ title: { $fulltext: "hello" } }],
+        title: { $fulltext: "hello" },
       } satisfies Filter<{ title: string }>);
     });
 
@@ -996,7 +1016,7 @@ describe("Fulltext Search", () => {
         fields: { status: { type: "string", searchable: true } },
       });
       expect(result).toEqual({
-        $or: [{ status: "hello" }],
+        status: "hello",
       } satisfies Filter<{ status: string }>);
     });
 
@@ -1015,11 +1035,16 @@ describe("Fulltext Search", () => {
     it("should use $contains for searchable array field even with fulltext", () => {
       const result = parse("hello", {
         fields: {
-          tags: { type: "string", searchable: true, fulltext: true, array: true },
+          tags: {
+            type: "string",
+            searchable: true,
+            fulltext: true,
+            array: true,
+          },
         },
       });
       expect(result).toEqual({
-        $or: [{ tags: { $contains: ["hello"] } }],
+        tags: { $contains: ["hello"] },
       } satisfies Filter<{ tags: string[] }>);
     });
   });
