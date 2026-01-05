@@ -623,54 +623,6 @@ describe("Grouping with Parentheses", () => {
   });
 });
 
-// =============================================================================
-// Wildcard Search (Prefix/Suffix)
-// =============================================================================
-
-describe("Wildcard Search", () => {
-  describe("Prefix Search", () => {
-    it("should parse prefix wildcard (abc*)", () => {
-      expect(parse("name:abc*")).toEqual({
-        name: { $like: "abc%" },
-      } satisfies Filter<{ name: string }>);
-    });
-
-    it("should handle prefix search with field options", () => {
-      const result = parse("name:test*", {
-        fields: { name: { type: "string" } },
-      });
-      expect(result).toEqual({
-        name: { $like: "test%" },
-      } satisfies Filter<{ name: string }>);
-    });
-  });
-
-  describe("Suffix Search", () => {
-    it("should parse suffix wildcard (*abc)", () => {
-      expect(parse("name:*abc")).toEqual({
-        name: { $like: "%abc" },
-      } satisfies Filter<{ name: string }>);
-    });
-
-    it("should handle suffix search with field options", () => {
-      const result = parse("name:*test", {
-        fields: { name: { type: "string" } },
-      });
-      expect(result).toEqual({
-        name: { $like: "%test" },
-      } satisfies Filter<{ name: string }>);
-    });
-  });
-
-  describe("No wildcard transformation for short strings", () => {
-    it("should not transform single character with asterisk", () => {
-      // Single char string length check - "*" alone is length 1
-      expect(parse("flag:*")).toEqual({
-        flag: "*",
-      } satisfies Filter<{ flag: string }>);
-    });
-  });
-});
 
 // =============================================================================
 // Multiple Values (Comma-separated)
@@ -973,15 +925,6 @@ describe("Fulltext Search", () => {
       } satisfies Filter<{ status: string }>);
     });
 
-    it("should still use $like for wildcard search even with fulltext", () => {
-      const result = parse("title:hello*", {
-        fields: { title: { type: "string", fulltext: true } },
-      });
-      expect(result).toEqual({
-        title: { $like: "hello%" },
-      } satisfies Filter<{ title: string }>);
-    });
-
     it("should still use $in for multiple values even with fulltext", () => {
       const result = parse("title:hello,world", {
         fields: { title: { type: "string", fulltext: true } },
@@ -1045,6 +988,110 @@ describe("Fulltext Search", () => {
       });
       expect(result).toEqual({
         tags: { $contains: ["hello"] },
+      } satisfies Filter<{ tags: string[] }>);
+    });
+  });
+
+  describe("Field Search with prefix option", () => {
+    it("should use $prefix for wildcard pattern with prefix: true", () => {
+      const result = parse("title:hello*", {
+        fields: { title: { type: "string", prefix: true } },
+      });
+      expect(result).toEqual({
+        title: { $prefix: "hello" },
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should not transform single asterisk even with prefix: true", () => {
+      const result = parse("title:*", {
+        fields: { title: { type: "string", prefix: true } },
+      });
+      expect(result).toEqual({
+        title: "*",
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should keep wildcard as-is without prefix option", () => {
+      const result = parse("title:hello*", {
+        fields: { title: { type: "string" } },
+      });
+      expect(result).toEqual({
+        title: "hello*",
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should use direct value for non-wildcard search even with prefix", () => {
+      const result = parse("title:hello", {
+        fields: { title: { type: "string", prefix: true } },
+      });
+      expect(result).toEqual({
+        title: "hello",
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should still use $in for multiple values even with prefix", () => {
+      const result = parse("title:hello,world", {
+        fields: { title: { type: "string", prefix: true } },
+      });
+      expect(result).toEqual({
+        title: { $in: ["hello", "world"] },
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should still use $contains for array field even with prefix", () => {
+      const result = parse("tags:javascript", {
+        fields: { tags: { type: "string", prefix: true, array: true } },
+      });
+      expect(result).toEqual({
+        tags: { $contains: ["javascript"] },
+      } satisfies Filter<{ tags: string[] }>);
+    });
+  });
+
+  describe("Global Search with prefix option", () => {
+    it("should use $prefix for wildcard search with prefix option", () => {
+      const result = parse("hello*", {
+        fields: { title: { type: "string", searchable: true, prefix: true } },
+      });
+      expect(result).toEqual({
+        title: { $prefix: "hello" },
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should use direct value for non-wildcard search even with prefix", () => {
+      const result = parse("hello", {
+        fields: { title: { type: "string", searchable: true, prefix: true } },
+      });
+      expect(result).toEqual({
+        title: "hello",
+      } satisfies Filter<{ title: string }>);
+    });
+
+    it("should mix prefix and non-prefix fields in global wildcard search", () => {
+      const result = parse("hello*", {
+        fields: {
+          title: { type: "string", searchable: true, prefix: true },
+          status: { type: "string", searchable: true },
+        },
+      });
+      expect(result).toEqual({
+        $or: [{ title: { $prefix: "hello" } }, { status: "hello*" }],
+      } satisfies Filter<{ title: string; status: string }>);
+    });
+
+    it("should use $contains for searchable array field even with prefix wildcard", () => {
+      const result = parse("hello*", {
+        fields: {
+          tags: {
+            type: "string",
+            searchable: true,
+            prefix: true,
+            array: true,
+          },
+        },
+      });
+      expect(result).toEqual({
+        tags: { $contains: ["hello*"] },
       } satisfies Filter<{ tags: string[] }>);
     });
   });

@@ -32,6 +32,14 @@ interface StringFieldOptions extends BaseFieldOptions {
    * @defaultValue false
    */
   fulltext?: boolean;
+
+  /**
+   * Whether this field should use prefix search for global searches.
+   * When true, global searches use `$prefix` operator instead of `$eq`.
+   * Only available for string type fields.
+   * @defaultValue false
+   */
+  prefix?: boolean;
 }
 
 /**

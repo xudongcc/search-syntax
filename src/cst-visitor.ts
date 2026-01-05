@@ -247,6 +247,18 @@ export class SearchSyntaxCstVisitor<T>
               return setWith({}, field, { $fulltext: value });
             }
 
+            // Use $prefix for prefix wildcard search (value*) when field has prefix: true
+            if (
+              fieldOptions.type === "string" &&
+              "prefix" in fieldOptions &&
+              fieldOptions.prefix === true &&
+              typeof value === "string" &&
+              value.length > 1 &&
+              value.endsWith("*")
+            ) {
+              return setWith({}, field, { $prefix: value.slice(0, -1) });
+            }
+
             return setWith({}, field, value);
           }
 
@@ -294,14 +306,16 @@ export class SearchSyntaxCstVisitor<T>
       return setWith({}, field, { $in: values });
     }
 
-    if (typeof value === "string" && value.length > 1) {
-      if (value.startsWith("*")) {
-        return setWith({}, field, { $like: `%${value.slice(1)}` });
-      }
-
-      if (value.endsWith("*")) {
-        return setWith({}, field, { $like: `${value.slice(0, -1)}%` });
-      }
+    // Use $prefix for prefix search (value*) when field has prefix: true
+    if (
+      typeof value === "string" &&
+      value.length > 1 &&
+      value.endsWith("*") &&
+      fieldOptions?.type === "string" &&
+      "prefix" in fieldOptions &&
+      fieldOptions.prefix === true
+    ) {
+      return setWith({}, field, { $prefix: value.slice(0, -1) });
     }
 
     // Use $fulltext for string fields with fulltext: true

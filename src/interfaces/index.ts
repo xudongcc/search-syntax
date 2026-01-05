@@ -71,17 +71,17 @@ export interface ComparisonOperators<T = unknown> {
   $contains?: T[];
 
   /**
-   * Provides SQL LIKE-style pattern matching.
-   * Used for wildcard searches (e.g., `name:john*` becomes `{ $like: "john%" }`).
-   * Use `%` as wildcard character.
-   */
-  $like?: string;
-
-  /**
    * Performs full-text search on string fields.
    * Used when field is configured with `fulltext: true`.
    */
   $fulltext?: string;
+
+  /**
+   * Performs prefix search on string fields.
+   * Used when field is configured with `prefix: true`.
+   * Matches values that start with the specified string.
+   */
+  $prefix?: string;
 }
 
 /**
