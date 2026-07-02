@@ -1,4 +1,24 @@
-import { parse, ParseError, NoSearchableFieldsError, Filter } from "./index.js";
+import { jest } from "@jest/globals";
+
+import {
+  parse,
+  ParseError,
+  NoSearchableFieldsError,
+  UnsupportedSyntaxError,
+  Filter,
+  searchSyntaxLexer,
+} from "./index.js";
+
+function expectUnsupportedSyntax(action: () => unknown): void {
+  try {
+    action();
+  } catch (error) {
+    expect(error).toBeInstanceOf(UnsupportedSyntaxError);
+    return;
+  }
+
+  throw new Error("Expected UnsupportedSyntaxError");
+}
 
 // =============================================================================
 // parse() function tests
@@ -243,13 +263,13 @@ describe("Automatic Type Recognition", () => {
   describe("Date", () => {
     it("should parse date (YYYY-MM-DD)", () => {
       expect(parse("date:2022-01-01")).toEqual({
-        date: new Date("2022-01-01"),
+        date: new Date(2022, 0, 1),
       } satisfies Filter<{ date: Date }>);
     });
 
     it("should parse date with time", () => {
       expect(parse("date:2022-01-01T12:34:56")).toEqual({
-        date: new Date("2022-01-01T12:34:56"),
+        date: new Date(2022, 0, 1, 12, 34, 56),
       } satisfies Filter<{ date: Date }>);
     });
 
@@ -262,6 +282,12 @@ describe("Automatic Type Recognition", () => {
     it("should parse date with Z timezone", () => {
       expect(parse("date:2022-01-01T12:34:56Z")).toEqual({
         date: new Date("2022-01-01T12:34:56Z"),
+      } satisfies Filter<{ date: Date }>);
+    });
+
+    it("should parse ISO strings with milliseconds", () => {
+      expect(parse("date:2022-01-01T12:34:56.789Z")).toEqual({
+        date: new Date("2022-01-01T12:34:56.789Z"),
       } satisfies Filter<{ date: Date }>);
     });
   });
@@ -322,11 +348,12 @@ describe("Type Coercion with Field Options", () => {
       } satisfies Filter<{ count: number }>);
     });
 
-    it("should return null for non-numeric string", () => {
-      const result = parse("count:abc", {
-        fields: { count: { type: "number" } },
-      });
-      expect(result).toBeNull();
+    it("should reject non-numeric string", () => {
+      expectUnsupportedSyntax(() =>
+        parse("count:abc", {
+          fields: { count: { type: "number" } },
+        })
+      );
     });
   });
 
@@ -365,17 +392,423 @@ describe("Type Coercion with Field Options", () => {
         fields: { created: { type: "date" } },
       });
       expect(result).toEqual({
-        created: new Date("2024-01-15"),
+        created: {
+          $gte: new Date(2024, 0, 15),
+          $lte: new Date(2024, 0, 15, 23, 59, 59, 999),
+        },
       } satisfies Filter<{ created: Date }>);
     });
 
-    it("should return null for invalid date", () => {
+    it("should coerce year and month precision date strings", () => {
+      expect(
+        parse("created:2024", {
+          fields: { created: { type: "date" } },
+        })
+      ).toEqual({
+        created: {
+          $gte: new Date(2024, 0, 1),
+          $lte: new Date(2024, 11, 31, 23, 59, 59, 999),
+        },
+      } satisfies Filter<{ created: Date }>);
+
+      expect(
+        parse("created:2024-01", {
+          fields: { created: { type: "date" } },
+        })
+      ).toEqual({
+        created: {
+          $gte: new Date(2024, 0, 1),
+          $lte: new Date(2024, 0, 31, 23, 59, 59, 999),
+        },
+      } satisfies Filter<{ created: Date }>);
+    });
+
+    it("should preserve null equality for date fields", () => {
+      expect(
+        parse("created:null", {
+          fields: { created: { type: "date" } },
+        })
+      ).toEqual({
+        created: null,
+      } satisfies Filter<{ created: Date | null }>);
+
+      expect(
+        parse("created:null,2024", {
+          fields: { created: { type: "date" } },
+          timezone: "UTC",
+        })
+      ).toEqual({
+        $or: [
+          { created: null },
+          {
+            created: {
+              $gte: new Date("2024-01-01T00:00:00.000Z"),
+              $lte: new Date("2024-12-31T23:59:59.999Z"),
+            },
+          },
+        ],
+      } satisfies Filter<{ created: Date | null }>);
+    });
+
+    it("should reject invalid date", () => {
       // Note: "not-a-date" would be parsed as NOT operator followed by "a-date"
       // Use a string that won't trigger NOT parsing
-      const result = parse("created:invalid", {
+      expectUnsupportedSyntax(() =>
+        parse("created:invalid", {
+          fields: { created: { type: "date" } },
+        })
+      );
+    });
+
+    it("should reject date strings with invalid calendar parts", () => {
+      const options = { fields: { created: { type: "date" as const } } };
+
+      expectUnsupportedSyntax(() => parse("created:2024-13", options));
+      expectUnsupportedSyntax(() => parse("created:2024-13-01", options));
+      expectUnsupportedSyntax(() => parse('created:"2024-13"', options));
+      expectUnsupportedSyntax(() => parse('created:"2024-13-01"', options));
+      expectUnsupportedSyntax(() => parse('created:"2024-99-99"', options));
+      expectUnsupportedSyntax(() => parse('created:"2024-02-31"', options));
+      expectUnsupportedSyntax(() =>
+        parse('created:"2024-13-01T12:00:00+08:00"', options)
+      );
+    });
+
+    it("should reject invalid unquoted dates without creating global search terms", () => {
+      const options = {
+        fields: {
+          created: { type: "date" as const },
+          title: { type: "string" as const, searchable: true },
+        },
+      };
+
+      expectUnsupportedSyntax(() => parse("created:2024-13", options));
+      expectUnsupportedSyntax(() => parse("created:2024-13-01", options));
+      expectUnsupportedSyntax(() => parse("created:2024-99-99", options));
+    });
+
+    it("should reject invalid unquoted date-like suffixes as one field value", () => {
+      const options = {
+        fields: {
+          created: { type: "date" as const },
+          title: { type: "string" as const, searchable: true },
+        },
+      };
+
+      expectUnsupportedSyntax(() => parse("created:2024-01-15x", options));
+      expectUnsupportedSyntax(() => parse("created:2024-01x", options));
+      expectUnsupportedSyntax(() => parse("created:2024-01-1", options));
+      expectUnsupportedSyntax(() => parse("created:2024-01-001", options));
+    });
+
+    it("should parse date-only strings in the configured timezone", () => {
+      const result = parse("created:2024-01-15", {
         fields: { created: { type: "date" } },
+        timezone: "America/New_York",
       });
-      expect(result).toBeNull();
+
+      expect(result).toEqual({
+        created: {
+          $gte: new Date("2024-01-15T05:00:00.000Z"),
+          $lte: new Date("2024-01-16T04:59:59.999Z"),
+        },
+      } satisfies Filter<{ created: Date }>);
+    });
+
+    it("should parse year and month precision dates in the configured timezone", () => {
+      expect(
+        parse("created:2024", {
+          fields: { created: { type: "date" } },
+          timezone: "America/New_York",
+        })
+      ).toEqual({
+        created: {
+          $gte: new Date("2024-01-01T05:00:00.000Z"),
+          $lte: new Date("2025-01-01T04:59:59.999Z"),
+        },
+      } satisfies Filter<{ created: Date }>);
+
+      expect(
+        parse("created:2024-01", {
+          fields: { created: { type: "date" } },
+          timezone: "America/New_York",
+        })
+      ).toEqual({
+        created: {
+          $gte: new Date("2024-01-01T05:00:00.000Z"),
+          $lte: new Date("2024-02-01T04:59:59.999Z"),
+        },
+      } satisfies Filter<{ created: Date }>);
+    });
+
+    it("should use OR ranges for multiple date values instead of $in", () => {
+      expect(
+        parse("created:2024-01,2024-02", {
+          fields: { created: { type: "date" } },
+          timezone: "UTC",
+        })
+      ).toEqual({
+        $or: [
+          {
+            created: {
+              $gte: new Date("2024-01-01T00:00:00.000Z"),
+              $lte: new Date("2024-01-31T23:59:59.999Z"),
+            },
+          },
+          {
+            created: {
+              $gte: new Date("2024-02-01T00:00:00.000Z"),
+              $lte: new Date("2024-02-29T23:59:59.999Z"),
+            },
+          },
+        ],
+      } satisfies Filter<{ created: Date }>);
+    });
+
+    it("should parse local datetimes in the configured timezone", () => {
+      const result = parse("created:2024-01-15T12:00:00", {
+        fields: { created: { type: "date" } },
+        timezone: "America/New_York",
+      });
+
+      expect(result).toEqual({
+        created: new Date("2024-01-15T17:00:00.000Z"),
+      } satisfies Filter<{ created: Date }>);
+    });
+
+    it("should keep explicit datetime offsets when timezone is configured", () => {
+      const result = parse("created:2024-01-15T12:00:00+08:00", {
+        fields: { created: { type: "date" } },
+        timezone: "America/New_York",
+      });
+
+      expect(result).toEqual({
+        created: new Date("2024-01-15T04:00:00.000Z"),
+      } satisfies Filter<{ created: Date }>);
+    });
+
+    it("should coerce ISO strings with milliseconds", () => {
+      expect(
+        parse("created:2024-01-15T12:00:00.123Z", {
+          fields: { created: { type: "date" } },
+        })
+      ).toEqual({
+        created: new Date("2024-01-15T12:00:00.123Z"),
+      } satisfies Filter<{ created: Date }>);
+
+      expect(
+        parse("created:2024-01-15T12:00:00.123+08:00", {
+          fields: { created: { type: "date" } },
+          timezone: "America/New_York",
+        })
+      ).toEqual({
+        created: new Date("2024-01-15T04:00:00.123Z"),
+      } satisfies Filter<{ created: Date }>);
+    });
+
+    it("should reject direct relative date values", () => {
+      const options = {
+        fields: { created: { type: "date" as const } },
+        timezone: "UTC",
+      };
+
+      expectUnsupportedSyntax(() => parse("created:1h", options));
+      expectUnsupportedSyntax(() => parse("created:-7d", options));
+      expectUnsupportedSyntax(() => parse("created:+2w", options));
+      expectUnsupportedSyntax(() => parse("created:-1w,1M", options));
+    });
+
+    it("should include unsupported field and value in unsupported syntax errors", () => {
+      try {
+        parse("created:-7d", {
+          fields: { created: { type: "date" } },
+        });
+        throw new Error("Expected UnsupportedSyntaxError");
+      } catch (error) {
+        expect(error).toBeInstanceOf(UnsupportedSyntaxError);
+        expect((error as UnsupportedSyntaxError).field).toBe("created");
+        expect((error as UnsupportedSyntaxError).value).toBe("-7d");
+      }
+    });
+
+    it("should resolve relative date comparisons from the configured timezone", () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-03-09T17:00:00.000Z"));
+
+      try {
+        expect(
+          parse("created:>=1d", {
+            fields: { created: { type: "date" } },
+            timezone: "America/New_York",
+          })
+        ).toEqual({
+          created: { $gte: new Date("2024-03-10T05:00:00.000Z") },
+        } satisfies Filter<{ created: Date }>);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("should coerce relative date strings in comparisons", () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-15T10:30:00.000Z"));
+
+      try {
+        expect(
+          parse("created:>=-1w created:<1M", {
+            fields: { created: { type: "date" } },
+          })
+        ).toEqual({
+          $and: [
+            { created: { $gte: new Date(2024, 0, 8) } },
+            { created: { $lt: new Date(2024, 1, 15) } },
+          ],
+        } satisfies Filter<{ created: Date }>);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("should snap relative date comparisons to range boundaries", () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-15T10:30:00.000Z"));
+
+      try {
+        const options = {
+          fields: { created: { type: "date" as const } },
+          timezone: "UTC",
+        };
+
+        expect(parse("created:>=-7d", options)).toEqual({
+          created: { $gte: new Date("2024-01-08T00:00:00.000Z") },
+        } satisfies Filter<{ created: Date }>);
+
+        expect(parse("created:>-7d", options)).toEqual({
+          created: { $gt: new Date("2024-01-08T23:59:59.999Z") },
+        } satisfies Filter<{ created: Date }>);
+
+        expect(parse("created:<-7d", options)).toEqual({
+          created: { $lt: new Date("2024-01-08T00:00:00.000Z") },
+        } satisfies Filter<{ created: Date }>);
+
+        expect(parse("created:<=-7d", options)).toEqual({
+          created: { $lte: new Date("2024-01-08T23:59:59.999Z") },
+        } satisfies Filter<{ created: Date }>);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("should snap date-only comparisons to precision boundaries", () => {
+      const options = {
+        fields: { created: { type: "date" as const } },
+        timezone: "UTC",
+      };
+
+      expect(parse("created:>=2024-01", options)).toEqual({
+        created: { $gte: new Date("2024-01-01T00:00:00.000Z") },
+      } satisfies Filter<{ created: Date }>);
+
+      expect(parse("created:<=2024-01", options)).toEqual({
+        created: { $lte: new Date("2024-01-31T23:59:59.999Z") },
+      } satisfies Filter<{ created: Date }>);
+
+      expect(parse("created:>2024", options)).toEqual({
+        created: { $gt: new Date("2024-12-31T23:59:59.999Z") },
+      } satisfies Filter<{ created: Date }>);
+
+      expect(parse("created:<2024-01-15", options)).toEqual({
+        created: { $lt: new Date("2024-01-15T00:00:00.000Z") },
+      } satisfies Filter<{ created: Date }>);
+    });
+
+    it("should clamp month offsets to the target month", () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-31T10:30:00.000Z"));
+
+      try {
+        expect(
+          parse("created:>=1M", {
+            fields: { created: { type: "date" } },
+            timezone: "UTC",
+          })
+        ).toEqual({
+          created: { $gte: new Date("2024-02-29T00:00:00.000Z") },
+        } satisfies Filter<{ created: Date }>);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("should clamp year offsets from leap day", () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-02-29T10:30:00.000Z"));
+
+      try {
+        expect(
+          parse("created:>=1y", {
+            fields: { created: { type: "date" } },
+            timezone: "UTC",
+          })
+        ).toEqual({
+          created: { $gte: new Date("2025-02-28T00:00:00.000Z") },
+        } satisfies Filter<{ created: Date }>);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("should not coerce relative date strings in global search for date fields", () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2024-01-15T10:30:00.000Z"));
+
+      try {
+        const result = parse("-7d", {
+          fields: {
+            title: { type: "string", searchable: true },
+            created: { type: "date", searchable: true },
+          },
+        });
+
+        expect(result).toEqual({
+          title: "-7d",
+        } satisfies Filter<{ title: string; created: Date }>);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("should reject unsupported relative date units and overflowed dates", () => {
+      const options = { fields: { created: { type: "date" as const } } };
+
+      expectUnsupportedSyntax(() => parse('created:"1Q"', options));
+      expectUnsupportedSyntax(() => parse('created:"1quarter"', options));
+      expectUnsupportedSyntax(() => parse('created:"1ms"', options));
+      expectUnsupportedSyntax(() => parse('created:"1millisecond"', options));
+      expectUnsupportedSyntax(() =>
+        parse("created:9007199254740991y", options)
+      );
+    });
+
+    it("should reject long relative date units", () => {
+      const options = { fields: { created: { type: "date" as const } } };
+
+      expectUnsupportedSyntax(() => parse('created:"1second"', options));
+      expectUnsupportedSyntax(() => parse('created:"1minute"', options));
+      expectUnsupportedSyntax(() => parse('created:"1hour"', options));
+      expectUnsupportedSyntax(() => parse('created:"1day"', options));
+      expectUnsupportedSyntax(() => parse('created:"1week"', options));
+      expectUnsupportedSyntax(() => parse('created:"1month"', options));
+      expectUnsupportedSyntax(() => parse('created:"1year"', options));
+    });
+
+    it("should only tokenize short relative date units as relative dates", () => {
+      const result = searchSyntaxLexer.tokenize("created:1weeks");
+
+      expect(result.errors).toEqual([]);
+      expect(result.tokens.map((token) => token.tokenType.name)).not.toContain(
+        "RelativeDate"
+      );
     });
   });
 });
@@ -466,11 +899,12 @@ describe("Comparison Operators", () => {
   });
 
   describe("Comparison with undefined value", () => {
-    it("should return null when comparison value is undefined (invalid type)", () => {
-      const result = parse("count:>abc", {
-        fields: { count: { type: "number" } },
-      });
-      expect(result).toBeNull();
+    it("should reject comparison value when it does not match the field type", () => {
+      expectUnsupportedSyntax(() =>
+        parse("count:>abc", {
+          fields: { count: { type: "number" } },
+        })
+      );
     });
   });
 });

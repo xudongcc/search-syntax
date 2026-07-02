@@ -1,4 +1,8 @@
 import compact from "lodash-es/compact.js";
+import dayjs, { type ManipulateType, type OpUnitType } from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat.js";
+import timezonePlugin from "dayjs/plugin/timezone.js";
+import utc from "dayjs/plugin/utc.js";
 import pickBy from "lodash-es/pickBy.js";
 import setWith from "lodash-es/setWith.js";
 
@@ -25,10 +29,280 @@ import {
   type ParseOptions,
 } from "./interfaces/index.js";
 import { searchSyntaxParser } from "./parser.js";
-import { NoSearchableFieldsError } from "./errors/index.js";
+import {
+  NoSearchableFieldsError,
+  UnsupportedSyntaxError,
+} from "./errors/index.js";
+
+dayjs.extend(utc);
+dayjs.extend(timezonePlugin);
+dayjs.extend(customParseFormat);
 
 function filterNull(values: any[]): any[] {
   return values.filter((value) => value !== null);
+}
+
+function throwUnsupportedSyntax(field: string, value: string): never {
+  throw new UnsupportedSyntaxError(field, getUnquotedValue(value));
+}
+
+const relativeDatePattern = /^\s*([+-]?\d+)\s*([smhdwMy])\s*$/;
+const explicitTimezonePattern =
+  /(?:[Tt]|\s).*(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/;
+const dateTimePrefixPattern = /^(\d{4}-\d{2}-\d{2})(?=[Tt\s])/;
+const isoLikeDatePattern = /^\d{4}(?:-\d+(?:-\d+)?)?(?:[Tt\s].*)?$/;
+
+const relativeDateUnits: Record<string, ManipulateType> = {
+  s: "second",
+  m: "minute",
+  h: "hour",
+  d: "day",
+  w: "week",
+  M: "month",
+  y: "year",
+};
+
+const calendarRelativeDateUnits = new Set(["d", "w", "M", "y"]);
+
+type DateBoundary = "start" | "end";
+
+interface ValueContext {
+  type?: FieldOptions["type"];
+  dateBoundary?: DateBoundary;
+  allowRelativeDate?: boolean;
+}
+
+const relativeDateBoundaryUnits: Record<string, OpUnitType> = {
+  s: "second",
+  m: "minute",
+  h: "hour",
+  d: "day",
+  w: "day",
+  M: "day",
+  y: "day",
+};
+
+const dateOnlyFormats = [
+  { pattern: /^\d{4}$/, format: "YYYY", boundaryUnit: "year" },
+  { pattern: /^\d{4}-\d{2}$/, format: "YYYY-MM", boundaryUnit: "month" },
+  {
+    pattern: /^\d{4}-\d{2}-\d{2}$/,
+    format: "YYYY-MM-DD",
+    boundaryUnit: "day",
+  },
+] as const;
+
+function getUnquotedValue(value: string): string {
+  if (
+    value.length >= 2 &&
+    ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'")))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
+}
+
+function getValidDate(date: Date): Date | undefined {
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function getValueContext(
+  context?: FieldOptions["type"] | ValueContext
+): ValueContext {
+  if (typeof context === "string") {
+    return { type: context };
+  }
+
+  return context ?? {};
+}
+
+function hasExplicitTimezone(value: string): boolean {
+  return explicitTimezonePattern.test(value);
+}
+
+function getDateOnlyFormat(value: string):
+  | {
+      format: string;
+      boundaryUnit: OpUnitType;
+    }
+  | undefined {
+  return dateOnlyFormats.find(({ pattern }) => pattern.test(value));
+}
+
+function applyDateBoundary<T extends dayjs.Dayjs>(
+  date: T,
+  unit: OpUnitType,
+  boundary?: DateBoundary
+): T {
+  if (typeof boundary === "undefined") {
+    return date;
+  }
+
+  return (boundary === "start" ? date.startOf(unit) : date.endOf(unit)) as T;
+}
+
+function parseDateOnlyValue(
+  value: string,
+  format: string,
+  timezone?: string,
+  boundary?: DateBoundary,
+  boundaryUnit: OpUnitType = "day"
+): Date | undefined {
+  let date = dayjs(value, format, true);
+  if (!date.isValid()) {
+    return;
+  }
+
+  if (timezone) {
+    date = date.tz(timezone, true);
+  }
+
+  return getValidDate(applyDateBoundary(date, boundaryUnit, boundary).toDate());
+}
+
+function parseDateTimeValue(
+  value: string,
+  timezone?: string
+): Date | undefined {
+  const datePrefix = dateTimePrefixPattern.exec(value)?.[1];
+  if (
+    typeof datePrefix === "undefined" ||
+    !dayjs(datePrefix, "YYYY-MM-DD", true).isValid()
+  ) {
+    return;
+  }
+
+  const nativeDate = new Date(value);
+  if (Number.isNaN(nativeDate.getTime())) {
+    return;
+  }
+
+  if (timezone && !hasExplicitTimezone(value)) {
+    return getValidDate(dayjs.tz(value, timezone).toDate());
+  }
+
+  return nativeDate;
+}
+
+function getRelativeBaseDate(timezone?: string) {
+  return timezone ? dayjs().tz(timezone) : dayjs();
+}
+
+function parseRelativeDate(
+  value: string,
+  timezone?: string,
+  boundary?: DateBoundary,
+  baseDate = getRelativeBaseDate(timezone)
+): Date | undefined {
+  const match = relativeDatePattern.exec(value);
+  if (match === null) {
+    return;
+  }
+
+  const amount = Number(match[1]);
+  const unit = relativeDateUnits[match[2]];
+  if (!Number.isSafeInteger(amount) || typeof unit === "undefined") {
+    return;
+  }
+
+  let date = baseDate.add(amount, unit);
+
+  if (timezone && calendarRelativeDateUnits.has(match[2])) {
+    date = date.tz(timezone, true);
+  }
+
+  date = applyDateBoundary(
+    date,
+    relativeDateBoundaryUnits[match[2]],
+    boundary
+  );
+
+  return getValidDate(date.toDate());
+}
+
+function parseDateValue(
+  value: string,
+  timezone?: string,
+  boundary?: DateBoundary,
+  allowRelativeDate = false
+): Date | undefined {
+  const unquotedValue = getUnquotedValue(value).trim();
+
+  if (allowRelativeDate) {
+    const relativeDate = parseRelativeDate(unquotedValue, timezone, boundary);
+    if (typeof relativeDate !== "undefined") {
+      return relativeDate;
+    }
+  }
+
+  const dateOnlyFormat = getDateOnlyFormat(unquotedValue);
+  if (typeof dateOnlyFormat !== "undefined") {
+    return parseDateOnlyValue(
+      unquotedValue,
+      dateOnlyFormat.format,
+      timezone,
+      boundary,
+      dateOnlyFormat.boundaryUnit
+    );
+  }
+
+  if (dateTimePrefixPattern.test(unquotedValue)) {
+    return parseDateTimeValue(unquotedValue, timezone);
+  }
+
+  if (isoLikeDatePattern.test(unquotedValue)) {
+    return;
+  }
+
+  return getValidDate(new Date(unquotedValue));
+}
+
+function parseDateRangeValue(
+  value: string,
+  timezone?: string
+): { $gte: Date; $lte: Date } | undefined {
+  const unquotedValue = getUnquotedValue(value).trim();
+
+  const dateOnlyFormat = getDateOnlyFormat(unquotedValue);
+  if (typeof dateOnlyFormat === "undefined") {
+    return;
+  }
+
+  const start = parseDateOnlyValue(
+    unquotedValue,
+    dateOnlyFormat.format,
+    timezone,
+    "start",
+    dateOnlyFormat.boundaryUnit
+  );
+  const end = parseDateOnlyValue(
+    unquotedValue,
+    dateOnlyFormat.format,
+    timezone,
+    "end",
+    dateOnlyFormat.boundaryUnit
+  );
+
+  if (typeof start === "undefined" || typeof end === "undefined") {
+    return;
+  }
+
+  return { $gte: start, $lte: end };
+}
+
+function getDateBoundaryForComparison(
+  children: OtherFieldTermCstChildren
+): DateBoundary {
+  if (
+    typeof children.GreaterThan !== "undefined" ||
+    typeof children.LessThanOrEqual !== "undefined"
+  ) {
+    return "end";
+  }
+
+  return "start";
 }
 
 const BaseCstVisitor = searchSyntaxParser.getBaseCstVisitorConstructor();
@@ -196,7 +470,7 @@ export class SearchSyntaxCstVisitor<T>
    */
   term(
     ctx: TermCstChildren
-  ): ComparisonOperators<T> | LogicalOperators<T> | undefined {
+  ): ComparisonOperators<T> | LogicalOperators<T> | Filter<T> | undefined {
     if (typeof ctx.equalFieldTerm !== "undefined") {
       return this.visit(ctx.equalFieldTerm);
     }
@@ -288,15 +562,68 @@ export class SearchSyntaxCstVisitor<T>
    */
   equalFieldTerm(
     children: EqualFieldTermCstChildren
-  ): ComparisonOperators<T> | undefined {
+  ): ComparisonOperators<T> | LogicalOperators<T> | Filter<T> | undefined {
     const field = this.visit(children.field);
     const fieldOptions = this.options?.fields?.[field];
+
+    if (fieldOptions?.type === "date" && fieldOptions.array !== true) {
+      const rawValues = children.value.map(
+        (item) => item.children.Value[0].image
+      );
+      const filters = children.value.map((item): Filter<T> | undefined => {
+        const token = item.children.Value[0];
+        const rawValue = token.image;
+
+        if (token.tokenType.name === "Null") {
+          return setWith({}, field, null);
+        }
+
+        const rangeValue = parseDateRangeValue(
+          rawValue,
+          this.options?.timezone
+        );
+
+        if (typeof rangeValue !== "undefined") {
+          return setWith({}, field, rangeValue);
+        }
+
+        const dateValue = parseDateValue(rawValue, this.options?.timezone);
+        if (typeof dateValue === "undefined") {
+          return;
+        }
+
+        return setWith({}, field, dateValue);
+      });
+
+      const invalidValueIndex = filters.findIndex(
+        (filter) => typeof filter === "undefined"
+      );
+      if (invalidValueIndex >= 0) {
+        throwUnsupportedSyntax(field, rawValues[invalidValueIndex]);
+      }
+
+      if (filters.length === 1) {
+        return filters[0];
+      }
+
+      return { $or: filters as Array<Filter<T>> };
+    }
 
     // AT_LEAST_ONE_SEP in parser guarantees at least one value
     const values = children.value.map((item) =>
       this.visit(item, fieldOptions?.type)
     );
     const value = values[0];
+
+    const invalidValueIndex = values.findIndex(
+      (item) => typeof item === "undefined"
+    );
+    if (invalidValueIndex >= 0) {
+      throwUnsupportedSyntax(
+        field,
+        children.value[invalidValueIndex].children.Value[0].image
+      );
+    }
 
     if (fieldOptions?.array === true) {
       return setWith({}, field, { $contains: values });
@@ -341,10 +668,19 @@ export class SearchSyntaxCstVisitor<T>
   ): ComparisonOperators<T> | undefined {
     const field = this.visit(children.field);
     const fieldOptions = this.options?.fields?.[field];
-    const value = this.visit(children.value, fieldOptions?.type);
+    const value = this.visit(
+      children.value,
+      fieldOptions?.type === "date"
+        ? {
+            type: fieldOptions.type,
+            dateBoundary: getDateBoundaryForComparison(children),
+            allowRelativeDate: true,
+          }
+        : fieldOptions?.type
+    );
 
     if (typeof value === "undefined") {
-      return;
+      throwUnsupportedSyntax(field, children.value[0].children.Value[0].image);
     }
 
     if (typeof children.LessThan !== "undefined") {
@@ -379,12 +715,16 @@ export class SearchSyntaxCstVisitor<T>
   /**
    * Visits a value node, performing type coercion based on field configuration.
    * @param children - The value CST children
-   * @param type - Optional type hint for coercion
+   * @param context - Optional type hint or coercion context
    * @returns The coerced value
    */
-  value(children: ValueCstChildren, type?: FieldOptions["type"]): any {
+  value(
+    children: ValueCstChildren,
+    context?: FieldOptions["type"] | ValueContext
+  ): any {
     // Parser grammar guarantees at least one Value token
     const item = children.Value[0];
+    const { type, dateBoundary, allowRelativeDate } = getValueContext(context);
 
     if (item.tokenType.name === "Null") {
       return null;
@@ -403,8 +743,12 @@ export class SearchSyntaxCstVisitor<T>
         case "boolean":
           return item.image === "true";
         case "date": {
-          const date = new Date(item.image);
-          return isNaN(date.getTime()) ? undefined : date;
+          return parseDateValue(
+            item.image,
+            this.options?.timezone,
+            dateBoundary,
+            allowRelativeDate
+          );
         }
       }
     }
@@ -417,7 +761,7 @@ export class SearchSyntaxCstVisitor<T>
       case "Number":
         return Number(item.image);
       case "Date":
-        return new Date(item.image);
+        return parseDateValue(item.image, this.options?.timezone);
       case "QuotedString":
         return item.image.slice(1, -1);
       default:

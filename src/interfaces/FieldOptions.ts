@@ -34,8 +34,8 @@ interface StringFieldOptions extends BaseFieldOptions {
   fulltext?: boolean;
 
   /**
-   * Whether this field should use prefix search for global searches.
-   * When true, global searches use `$prefix` operator instead of `$eq`.
+   * Whether this field should use prefix search.
+   * When true, field and global searches with a trailing `*` use `$prefix`.
    * Only available for string type fields.
    * @defaultValue false
    */
@@ -50,7 +50,7 @@ interface NonStringFieldOptions extends BaseFieldOptions {
    * The data type of the field.
    * - `"number"` - Numeric values (integers or decimals)
    * - `"boolean"` - Boolean values (true/false)
-   * - `"date"` - Date/datetime values
+   * - `"date"` - Date/datetime values, with relative date offsets in comparisons
    */
   type: "number" | "boolean" | "date";
 }

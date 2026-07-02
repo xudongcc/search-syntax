@@ -22,8 +22,8 @@ export type ArrayElement<T> = T extends ReadonlyArray<infer U> ? T | U : T;
  * // Value in array
  * { status: { $in: ["active", "pending"] } }
  *
- * // Pattern matching (SQL LIKE style)
- * { name: { $like: "john%" } }
+ * // Prefix search
+ * { name: { $prefix: "john" } }
  * ```
  */
 export interface ComparisonOperators<T = unknown> {
@@ -59,7 +59,8 @@ export interface ComparisonOperators<T = unknown> {
 
   /**
    * Matches any of the values specified in an array.
-   * Used for comma-separated values in search syntax (e.g., `status:active,pending`).
+   * Used for comma-separated non-date values in search syntax
+   * (e.g., `status:active,pending`).
    * @see https://www.mongodb.com/docs/manual/reference/operator/query/in/
    */
   $in?: T[];

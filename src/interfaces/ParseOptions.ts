@@ -29,7 +29,9 @@ export interface ParseOptions {
   aliases?: Record<string, string>;
 
   /**
-   * Timezone to use when parsing date values.
+   * User timezone to use when parsing date values without explicit offsets
+   * and resolving relative date offsets in comparisons. Defaults to the
+   * system timezone.
    * @example "Asia/Shanghai", "America/New_York"
    */
   timezone?: string;

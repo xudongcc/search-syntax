@@ -2,7 +2,7 @@ import { Filter, ParseOptions } from "./interfaces/index.js";
 import { searchSyntaxLexer } from "./lexer.js";
 import { searchSyntaxParser } from "./parser.js";
 import { SearchSyntaxCstVisitor } from "./cst-visitor.js";
-import { ParseError } from "./errors/index.js";
+import { ParseError, UnsupportedSyntaxError } from "./errors/index.js";
 import { hasValidValues } from "./utils/index.js";
 
 /**
@@ -11,8 +11,8 @@ import { hasValidValues } from "./utils/index.js";
  * Supports a search syntax similar to GitHub, Shopify, and Gmail:
  * - Field search: `field:value`, `field:"value with spaces"`
  * - Comparison operators: `field:>5`, `field:>=10`, `field:<20`, `field:<=30`
- * - Multiple values: `field:a,b,c` (produces `$in` or `$contains`)
- * - Wildcard search: `field:abc*` (prefix), `field:*abc` (suffix)
+ * - Multiple values: `field:a,b,c` (produces `$in`, `$contains`, or `$or` for date fields)
+ * - Prefix search: `field:abc*` when the string field is configured with `prefix: true`
  * - Logical operators: `AND`, `OR`, `-` (NOT)
  * - Grouping: `(field1:a OR field2:b)`
  * - Global search: Terms without field names search across all `searchable` fields
@@ -20,7 +20,10 @@ import { hasValidValues } from "./utils/index.js";
  * @typeParam T - The shape of the object being filtered
  * @param query - The search query string to parse
  * @param options - Optional configuration for parsing
- * @returns A filter object compatible with database query builders, or null if no filters are produced
+ * @returns A filter object compatible with database query builders, or null for empty input
+ * @throws {ParseError} When the query cannot be parsed
+ * @throws {NoSearchableFieldsError} When a global search cannot target any searchable field
+ * @throws {UnsupportedSyntaxError} When an explicit field value cannot be coerced to the configured type
  *
  * @example
  * ```ts
@@ -42,9 +45,9 @@ import { hasValidValues } from "./utils/index.js";
  *
  * // Global search
  * parse("hello", { fields: { name: { type: "string", searchable: true } } })
- * // => { $or: [{ name: "hello" }] }
+ * // => { name: "hello" }
  *
- * // Empty or no match
+ * // Empty input
  * parse("")
  * // => null
  * ```
@@ -68,7 +71,7 @@ export function parse<T = Record<string, any>>(
   const result = new SearchSyntaxCstVisitor(options).visit(cst);
 
   if (result === undefined || !hasValidValues(result)) {
-    return null;
+    throw new UnsupportedSyntaxError();
   }
 
   return result;
