@@ -36,6 +36,13 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Typecheck source and tests
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        if: matrix.node == '24'
+        run: pnpm lint
+
       - name: Test package entry points
         run: pnpm test:package
 

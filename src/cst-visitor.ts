@@ -38,8 +38,8 @@ dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
 dayjs.extend(customParseFormat);
 
-function filterNull(values: any[]): any[] {
-  return values.filter((value) => value !== null);
+function filterNull<T>(values: (T | null)[]): T[] {
+  return values.filter((value): value is T => value !== null);
 }
 
 function throwUnsupportedSyntax(field: string, value: string): never {
@@ -47,8 +47,7 @@ function throwUnsupportedSyntax(field: string, value: string): never {
 }
 
 const relativeDatePattern = /^\s*([+-]?\d+)\s*([smhdwMy])\s*$/;
-const explicitTimezonePattern =
-  /(?:[Tt]|\s).*(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/;
+const explicitTimezonePattern = /(?:[Tt]|\s).*(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/;
 const dateTimePrefixPattern = /^(\d{4}-\d{2}-\d{2})(?=[Tt\s])/;
 const isoLikeDatePattern = /^\d{4}(?:-\d+(?:-\d+)?)?(?:[Tt\s].*)?$/;
 
@@ -109,7 +108,7 @@ function getValidDate(date: Date): Date | undefined {
 }
 
 function getValueContext(
-  context?: FieldOptions["type"] | ValueContext
+  context?: FieldOptions["type"] | ValueContext,
 ): ValueContext {
   if (typeof context === "string") {
     return { type: context };
@@ -134,7 +133,7 @@ function getDateOnlyFormat(value: string):
 function applyDateBoundary<T extends dayjs.Dayjs>(
   date: T,
   unit: OpUnitType,
-  boundary?: DateBoundary
+  boundary?: DateBoundary,
 ): T {
   if (typeof boundary === "undefined") {
     return date;
@@ -148,7 +147,7 @@ function parseDateOnlyValue(
   format: string,
   timezone?: string,
   boundary?: DateBoundary,
-  boundaryUnit: OpUnitType = "day"
+  boundaryUnit: OpUnitType = "day",
 ): Date | undefined {
   let date = dayjs(value, format, true);
   if (!date.isValid()) {
@@ -164,7 +163,7 @@ function parseDateOnlyValue(
 
 function parseDateTimeValue(
   value: string,
-  timezone?: string
+  timezone?: string,
 ): Date | undefined {
   const datePrefix = dateTimePrefixPattern.exec(value)?.[1];
   if (
@@ -194,7 +193,7 @@ function parseRelativeDate(
   value: string,
   timezone?: string,
   boundary?: DateBoundary,
-  baseDate = getRelativeBaseDate(timezone)
+  baseDate = getRelativeBaseDate(timezone),
 ): Date | undefined {
   const match = relativeDatePattern.exec(value);
   if (match === null) {
@@ -213,11 +212,7 @@ function parseRelativeDate(
     date = date.tz(timezone, true);
   }
 
-  date = applyDateBoundary(
-    date,
-    relativeDateBoundaryUnits[match[2]],
-    boundary
-  );
+  date = applyDateBoundary(date, relativeDateBoundaryUnits[match[2]], boundary);
 
   return getValidDate(date.toDate());
 }
@@ -226,7 +221,7 @@ function parseDateValue(
   value: string,
   timezone?: string,
   boundary?: DateBoundary,
-  allowRelativeDate = false
+  allowRelativeDate = false,
 ): Date | undefined {
   const unquotedValue = getUnquotedValue(value).trim();
 
@@ -244,7 +239,7 @@ function parseDateValue(
       dateOnlyFormat.format,
       timezone,
       boundary,
-      dateOnlyFormat.boundaryUnit
+      dateOnlyFormat.boundaryUnit,
     );
   }
 
@@ -261,7 +256,7 @@ function parseDateValue(
 
 function parseDateRangeValue(
   value: string,
-  timezone?: string
+  timezone?: string,
 ): { $gte: Date; $lte: Date } | undefined {
   const unquotedValue = getUnquotedValue(value).trim();
 
@@ -275,14 +270,14 @@ function parseDateRangeValue(
     dateOnlyFormat.format,
     timezone,
     "start",
-    dateOnlyFormat.boundaryUnit
+    dateOnlyFormat.boundaryUnit,
   );
   const end = parseDateOnlyValue(
     unquotedValue,
     dateOnlyFormat.format,
     timezone,
     "end",
-    dateOnlyFormat.boundaryUnit
+    dateOnlyFormat.boundaryUnit,
   );
 
   if (typeof start === "undefined" || typeof end === "undefined") {
@@ -293,7 +288,7 @@ function parseDateRangeValue(
 }
 
 function getDateBoundaryForComparison(
-  children: OtherFieldTermCstChildren
+  children: OtherFieldTermCstChildren,
 ): DateBoundary {
   if (
     typeof children.GreaterThan !== "undefined" ||
@@ -324,7 +319,7 @@ const BaseCstVisitor = searchSyntaxParser.getBaseCstVisitorConstructor();
  */
 export class SearchSyntaxCstVisitor<T>
   extends BaseCstVisitor
-  implements ICstNodeVisitor<any, any>
+  implements ICstNodeVisitor<FieldOptions["type"] | ValueContext, unknown>
 {
   constructor(private readonly options?: ParseOptions) {
     super();
@@ -377,7 +372,7 @@ export class SearchSyntaxCstVisitor<T>
    * @returns Merged object or $and array
    */
   private mergeAndConditions(
-    conditions: Filter<T>[]
+    conditions: Filter<T>[],
   ): LogicalOperators<T> | Filter<T> {
     const merged: Filter<T> = {};
     const unmerged: Filter<T>[] = [];
@@ -469,7 +464,7 @@ export class SearchSyntaxCstVisitor<T>
    * @throws {NoSearchableFieldsError} When global search is used without searchable fields
    */
   term(
-    ctx: TermCstChildren
+    ctx: TermCstChildren,
   ): ComparisonOperators<T> | LogicalOperators<T> | Filter<T> | undefined {
     if (typeof ctx.equalFieldTerm !== "undefined") {
       return this.visit(ctx.equalFieldTerm);
@@ -493,7 +488,7 @@ export class SearchSyntaxCstVisitor<T>
   globalTerm(ctx: GlobalTermCstChildren): LogicalOperators<T> {
     const searchableFields = pickBy(
       this.options?.fields,
-      (item) => item.searchable
+      (item) => item.searchable,
     );
 
     if (Object.keys(searchableFields).length === 0) {
@@ -503,7 +498,7 @@ export class SearchSyntaxCstVisitor<T>
 
     const filters = compact(
       Object.entries(searchableFields).map(
-        ([field, fieldOptions]: [any, any]): Filter<T> | undefined => {
+        ([field, fieldOptions]): Filter<T> | undefined => {
           const value = this.visit(ctx.value, fieldOptions.type);
 
           if (typeof value !== "undefined") {
@@ -537,8 +532,8 @@ export class SearchSyntaxCstVisitor<T>
           }
 
           return undefined;
-        }
-      )
+        },
+      ),
     );
 
     if (filters.length === 0) {
@@ -561,14 +556,14 @@ export class SearchSyntaxCstVisitor<T>
    * @returns The comparator operators for this field
    */
   equalFieldTerm(
-    children: EqualFieldTermCstChildren
+    children: EqualFieldTermCstChildren,
   ): ComparisonOperators<T> | LogicalOperators<T> | Filter<T> | undefined {
     const field = this.visit(children.field);
     const fieldOptions = this.options?.fields?.[field];
 
     if (fieldOptions?.type === "date" && fieldOptions.array !== true) {
       const rawValues = children.value.map(
-        (item) => item.children.Value[0].image
+        (item) => item.children.Value[0].image,
       );
       const filters = children.value.map((item): Filter<T> | undefined => {
         const token = item.children.Value[0];
@@ -580,7 +575,7 @@ export class SearchSyntaxCstVisitor<T>
 
         const rangeValue = parseDateRangeValue(
           rawValue,
-          this.options?.timezone
+          this.options?.timezone,
         );
 
         if (typeof rangeValue !== "undefined") {
@@ -596,7 +591,7 @@ export class SearchSyntaxCstVisitor<T>
       });
 
       const invalidValueIndex = filters.findIndex(
-        (filter) => typeof filter === "undefined"
+        (filter) => typeof filter === "undefined",
       );
       if (invalidValueIndex >= 0) {
         throwUnsupportedSyntax(field, rawValues[invalidValueIndex]);
@@ -611,17 +606,17 @@ export class SearchSyntaxCstVisitor<T>
 
     // AT_LEAST_ONE_SEP in parser guarantees at least one value
     const values = children.value.map((item) =>
-      this.visit(item, fieldOptions?.type)
+      this.visit(item, fieldOptions?.type),
     );
     const value = values[0];
 
     const invalidValueIndex = values.findIndex(
-      (item) => typeof item === "undefined"
+      (item) => typeof item === "undefined",
     );
     if (invalidValueIndex >= 0) {
       throwUnsupportedSyntax(
         field,
-        children.value[invalidValueIndex].children.Value[0].image
+        children.value[invalidValueIndex].children.Value[0].image,
       );
     }
 
@@ -664,7 +659,7 @@ export class SearchSyntaxCstVisitor<T>
    * @returns The comparator operators for this field comparison
    */
   otherFieldTerm(
-    children: OtherFieldTermCstChildren
+    children: OtherFieldTermCstChildren,
   ): ComparisonOperators<T> | undefined {
     const field = this.visit(children.field);
     const fieldOptions = this.options?.fields?.[field];
@@ -676,7 +671,7 @@ export class SearchSyntaxCstVisitor<T>
             dateBoundary: getDateBoundaryForComparison(children),
             allowRelativeDate: true,
           }
-        : fieldOptions?.type
+        : fieldOptions?.type,
     );
 
     if (typeof value === "undefined") {
@@ -720,8 +715,8 @@ export class SearchSyntaxCstVisitor<T>
    */
   value(
     children: ValueCstChildren,
-    context?: FieldOptions["type"] | ValueContext
-  ): any {
+    context?: FieldOptions["type"] | ValueContext,
+  ): string | number | boolean | Date | null | undefined {
     // Parser grammar guarantees at least one Value token
     const item = children.Value[0];
     const { type, dateBoundary, allowRelativeDate } = getValueContext(context);
@@ -747,7 +742,7 @@ export class SearchSyntaxCstVisitor<T>
             item.image,
             this.options?.timezone,
             dateBoundary,
-            allowRelativeDate
+            allowRelativeDate,
           );
         }
       }

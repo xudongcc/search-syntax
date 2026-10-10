@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": "./src",
+    "types": [],
     "incremental": false,
     "inlineSources": true,
     "noEmitOnError": true

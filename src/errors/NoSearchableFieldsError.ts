@@ -24,7 +24,7 @@ export class NoSearchableFieldsError extends Error {
 
   constructor(term: string) {
     super(
-      `Global search term "${term}" requires at least one field with searchable: true`
+      `Global search term "${term}" requires at least one field with searchable: true`,
     );
     this.name = "NoSearchableFieldsError";
     this.term = term;

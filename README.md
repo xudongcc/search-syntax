@@ -29,9 +29,11 @@ CommonJS applications can use asynchronous `import("search-syntax")` instead.
 TypeScript applications should use ESM with `NodeNext` module resolution, or
 `Bundler` resolution when using a bundler.
 
-The `parse(query, options)` API and search syntax are unchanged. Applications
-using the exported `SearchSyntaxParser`, `searchSyntaxParser`, or CST types should
-also account for these upstream changes:
+The `parse(query, options)` calling convention and search syntax are unchanged.
+Its default result type now uses `unknown` instead of `any`; supply a document
+type (for example, `parse<{ id: number }>(query)`) or narrow untyped field values
+before using them. Applications using the exported `SearchSyntaxParser`,
+`searchSyntaxParser`, or CST types should also account for these upstream changes:
 
 - The inherited `computeContentAssist()` and `getNextPossibleTokenTypes()` methods
   have been removed.
@@ -42,6 +44,21 @@ also account for these upstream changes:
 
 See the [Chevrotain migration notes](https://chevrotain.io/docs/changes/BREAKING_CHANGES.html)
 and [changelog](https://chevrotain.io/docs/changes/CHANGELOG.html) for details.
+
+## Development
+
+Use Node.js 24.21.0 or later and the pnpm version pinned in `package.json` for
+development. The published package supports Node.js 22.0.0 and later.
+
+`pnpm build` compiles with TypeScript 7 and generates the CST declarations.
+`pnpm lint`, `pnpm test:coverage`, and `pnpm test:package` check the source and
+published entry point.
+
+TypeScript 7 currently has no JavaScript compiler API. Following the
+[official side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0),
+`@typescript/native` provides TypeScript 7's `tsc`, while the `typescript` alias
+provides the TypeScript 6 API required by typescript-eslint, ts-jest, and TypeDoc.
+The compatibility package is only a development dependency.
 
 ## Quick Start
 
