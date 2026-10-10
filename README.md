@@ -7,6 +7,8 @@ A search syntax parser similar to GitHub, Shopify, and Gmail. Converts human-rea
 
 ## Installation
 
+Requires Node.js 22 or later. This package is ESM-only.
+
 ```bash
 npm install search-syntax
 # or
@@ -14,6 +16,49 @@ pnpm add search-syntax
 # or
 yarn add search-syntax
 ```
+
+## Migrating to v4
+
+Version 4 upgrades Chevrotain to version 13, requires Node.js 22 or later, and
+publishes native ESM JavaScript and TypeScript declarations without bundling.
+Chevrotain no longer depends on Lodash, and search-syntax's own `lodash-es`
+dependency now requires version 4.18.1 or later to include the security fixes.
+
+Replace `require("search-syntax")` with `import { parse } from "search-syntax"`.
+CommonJS applications can use asynchronous `import("search-syntax")` instead.
+TypeScript applications should use ESM with `NodeNext` module resolution, or
+`Bundler` resolution when using a bundler.
+
+The `parse(query, options)` calling convention and search syntax are unchanged.
+Its default result type now uses `unknown` instead of `any`; supply a document
+type (for example, `parse<{ id: number }>(query)`) or narrow untyped field values
+before using them. Applications using the exported `SearchSyntaxParser`,
+`searchSyntaxParser`, or CST types should also account for these upstream changes:
+
+- The inherited `computeContentAssist()` and `getNextPossibleTokenTypes()` methods
+  have been removed.
+- Unavailable token and CST locations now use `-1` instead of `NaN`. Update direct
+  location checks such as `Number.isNaN(token.startOffset)` to
+  `token.startOffset === -1`.
+- Parser DSL types are stricter; custom parser extensions may need type updates.
+
+See the [Chevrotain migration notes](https://chevrotain.io/docs/changes/BREAKING_CHANGES.html)
+and [changelog](https://chevrotain.io/docs/changes/CHANGELOG.html) for details.
+
+## Development
+
+Use Node.js 24.21.0 or later and the pnpm version pinned in `package.json` for
+development. The published package supports Node.js 22.0.0 and later.
+
+`pnpm build` compiles with TypeScript 7 and generates the CST declarations.
+`pnpm lint`, `pnpm test:coverage`, and `pnpm test:package` check the source and
+published entry point.
+
+TypeScript 7 currently has no JavaScript compiler API. Following the
+[official side-by-side setup](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0),
+`@typescript/native` provides TypeScript 7's `tsc`, while the `typescript` alias
+provides the TypeScript 6 API required by typescript-eslint, ts-jest, and TypeDoc.
+The compatibility package is only a development dependency.
 
 ## Quick Start
 

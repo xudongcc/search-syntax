@@ -10,14 +10,7 @@ import {
 } from "./index.js";
 
 function expectUnsupportedSyntax(action: () => unknown): void {
-  try {
-    action();
-  } catch (error) {
-    expect(error).toBeInstanceOf(UnsupportedSyntaxError);
-    return;
-  }
-
-  throw new Error("Expected UnsupportedSyntaxError");
+  expect(action).toThrow(UnsupportedSyntaxError);
 }
 
 // =============================================================================
@@ -47,13 +40,17 @@ describe("parse()", () => {
     });
 
     it("should include query in ParseError", () => {
+      let thrown: unknown;
       try {
         parse("(status:active");
       } catch (error) {
-        expect(error).toBeInstanceOf(ParseError);
-        expect((error as ParseError).query).toBe("(status:active");
-        expect((error as ParseError).name).toBe("ParseError");
+        thrown = error;
       }
+      expect(thrown).toBeInstanceOf(ParseError);
+      expect(thrown).toMatchObject({
+        query: "(status:active",
+        name: "ParseError",
+      });
     });
   });
 });
@@ -108,15 +105,17 @@ describe("Global Search", () => {
   });
 
   it("should include term in NoSearchableFieldsError", () => {
+    let thrown: unknown;
     try {
       parse("hello");
     } catch (error) {
-      expect(error).toBeInstanceOf(NoSearchableFieldsError);
-      expect((error as NoSearchableFieldsError).term).toBe("hello");
-      expect((error as NoSearchableFieldsError).name).toBe(
-        "NoSearchableFieldsError"
-      );
+      thrown = error;
     }
+    expect(thrown).toBeInstanceOf(NoSearchableFieldsError);
+    expect(thrown).toMatchObject({
+      term: "hello",
+      name: "NoSearchableFieldsError",
+    });
   });
 
   it("should search across all searchable fields", () => {
@@ -151,7 +150,7 @@ describe("Global Search", () => {
         fields: {
           id: { type: "number", searchable: true },
         },
-      })
+      }),
     ).toThrow(NoSearchableFieldsError);
   });
 
@@ -352,7 +351,7 @@ describe("Type Coercion with Field Options", () => {
       expectUnsupportedSyntax(() =>
         parse("count:abc", {
           fields: { count: { type: "number" } },
-        })
+        }),
       );
     });
   });
@@ -403,7 +402,7 @@ describe("Type Coercion with Field Options", () => {
       expect(
         parse("created:2024", {
           fields: { created: { type: "date" } },
-        })
+        }),
       ).toEqual({
         created: {
           $gte: new Date(2024, 0, 1),
@@ -414,7 +413,7 @@ describe("Type Coercion with Field Options", () => {
       expect(
         parse("created:2024-01", {
           fields: { created: { type: "date" } },
-        })
+        }),
       ).toEqual({
         created: {
           $gte: new Date(2024, 0, 1),
@@ -427,7 +426,7 @@ describe("Type Coercion with Field Options", () => {
       expect(
         parse("created:null", {
           fields: { created: { type: "date" } },
-        })
+        }),
       ).toEqual({
         created: null,
       } satisfies Filter<{ created: Date | null }>);
@@ -436,7 +435,7 @@ describe("Type Coercion with Field Options", () => {
         parse("created:null,2024", {
           fields: { created: { type: "date" } },
           timezone: "UTC",
-        })
+        }),
       ).toEqual({
         $or: [
           { created: null },
@@ -456,7 +455,7 @@ describe("Type Coercion with Field Options", () => {
       expectUnsupportedSyntax(() =>
         parse("created:invalid", {
           fields: { created: { type: "date" } },
-        })
+        }),
       );
     });
 
@@ -470,7 +469,7 @@ describe("Type Coercion with Field Options", () => {
       expectUnsupportedSyntax(() => parse('created:"2024-99-99"', options));
       expectUnsupportedSyntax(() => parse('created:"2024-02-31"', options));
       expectUnsupportedSyntax(() =>
-        parse('created:"2024-13-01T12:00:00+08:00"', options)
+        parse('created:"2024-13-01T12:00:00+08:00"', options),
       );
     });
 
@@ -520,7 +519,7 @@ describe("Type Coercion with Field Options", () => {
         parse("created:2024", {
           fields: { created: { type: "date" } },
           timezone: "America/New_York",
-        })
+        }),
       ).toEqual({
         created: {
           $gte: new Date("2024-01-01T05:00:00.000Z"),
@@ -532,7 +531,7 @@ describe("Type Coercion with Field Options", () => {
         parse("created:2024-01", {
           fields: { created: { type: "date" } },
           timezone: "America/New_York",
-        })
+        }),
       ).toEqual({
         created: {
           $gte: new Date("2024-01-01T05:00:00.000Z"),
@@ -546,7 +545,7 @@ describe("Type Coercion with Field Options", () => {
         parse("created:2024-01,2024-02", {
           fields: { created: { type: "date" } },
           timezone: "UTC",
-        })
+        }),
       ).toEqual({
         $or: [
           {
@@ -591,7 +590,7 @@ describe("Type Coercion with Field Options", () => {
       expect(
         parse("created:2024-01-15T12:00:00.123Z", {
           fields: { created: { type: "date" } },
-        })
+        }),
       ).toEqual({
         created: new Date("2024-01-15T12:00:00.123Z"),
       } satisfies Filter<{ created: Date }>);
@@ -600,7 +599,7 @@ describe("Type Coercion with Field Options", () => {
         parse("created:2024-01-15T12:00:00.123+08:00", {
           fields: { created: { type: "date" } },
           timezone: "America/New_York",
-        })
+        }),
       ).toEqual({
         created: new Date("2024-01-15T04:00:00.123Z"),
       } satisfies Filter<{ created: Date }>);
@@ -619,16 +618,16 @@ describe("Type Coercion with Field Options", () => {
     });
 
     it("should include unsupported field and value in unsupported syntax errors", () => {
+      let thrown: unknown;
       try {
         parse("created:-7d", {
           fields: { created: { type: "date" } },
         });
-        throw new Error("Expected UnsupportedSyntaxError");
       } catch (error) {
-        expect(error).toBeInstanceOf(UnsupportedSyntaxError);
-        expect((error as UnsupportedSyntaxError).field).toBe("created");
-        expect((error as UnsupportedSyntaxError).value).toBe("-7d");
+        thrown = error;
       }
+      expect(thrown).toBeInstanceOf(UnsupportedSyntaxError);
+      expect(thrown).toMatchObject({ field: "created", value: "-7d" });
     });
 
     it("should resolve relative date comparisons from the configured timezone", () => {
@@ -640,7 +639,7 @@ describe("Type Coercion with Field Options", () => {
           parse("created:>=1d", {
             fields: { created: { type: "date" } },
             timezone: "America/New_York",
-          })
+          }),
         ).toEqual({
           created: { $gte: new Date("2024-03-10T05:00:00.000Z") },
         } satisfies Filter<{ created: Date }>);
@@ -657,7 +656,7 @@ describe("Type Coercion with Field Options", () => {
         expect(
           parse("created:>=-1w created:<1M", {
             fields: { created: { type: "date" } },
-          })
+          }),
         ).toEqual({
           $and: [
             { created: { $gte: new Date(2024, 0, 8) } },
@@ -731,7 +730,7 @@ describe("Type Coercion with Field Options", () => {
           parse("created:>=1M", {
             fields: { created: { type: "date" } },
             timezone: "UTC",
-          })
+          }),
         ).toEqual({
           created: { $gte: new Date("2024-02-29T00:00:00.000Z") },
         } satisfies Filter<{ created: Date }>);
@@ -749,7 +748,7 @@ describe("Type Coercion with Field Options", () => {
           parse("created:>=1y", {
             fields: { created: { type: "date" } },
             timezone: "UTC",
-          })
+          }),
         ).toEqual({
           created: { $gte: new Date("2025-02-28T00:00:00.000Z") },
         } satisfies Filter<{ created: Date }>);
@@ -786,7 +785,7 @@ describe("Type Coercion with Field Options", () => {
       expectUnsupportedSyntax(() => parse('created:"1ms"', options));
       expectUnsupportedSyntax(() => parse('created:"1millisecond"', options));
       expectUnsupportedSyntax(() =>
-        parse("created:9007199254740991y", options)
+        parse("created:9007199254740991y", options),
       );
     });
 
@@ -807,7 +806,7 @@ describe("Type Coercion with Field Options", () => {
 
       expect(result.errors).toEqual([]);
       expect(result.tokens.map((token) => token.tokenType.name)).not.toContain(
-        "RelativeDate"
+        "RelativeDate",
       );
     });
   });
@@ -903,7 +902,7 @@ describe("Comparison Operators", () => {
       expectUnsupportedSyntax(() =>
         parse("count:>abc", {
           fields: { count: { type: "number" } },
-        })
+        }),
       );
     });
   });
@@ -1056,7 +1055,6 @@ describe("Grouping with Parentheses", () => {
     } satisfies Filter<{ type: string; status: string }>);
   });
 });
-
 
 // =============================================================================
 // Multiple Values (Comma-separated)
@@ -1274,7 +1272,7 @@ describe("Combined Scenarios", () => {
           featured: { type: "boolean" },
           author: { type: "string" },
         },
-      }
+      },
     );
     expect(result).toEqual({
       $or: [

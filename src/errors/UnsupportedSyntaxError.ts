@@ -31,7 +31,7 @@ export class UnsupportedSyntaxError extends Error {
     super(
       typeof field !== "undefined" && typeof value !== "undefined"
         ? `Unsupported value "${value}" for field "${field}"`
-        : "Unsupported search syntax"
+        : "Unsupported search syntax",
     );
     this.name = "UnsupportedSyntaxError";
     this.field = field;

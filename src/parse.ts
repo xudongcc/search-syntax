@@ -52,9 +52,9 @@ import { hasValidValues } from "./utils/index.js";
  * // => null
  * ```
  */
-export function parse<T = Record<string, any>>(
+export function parse<T = Record<string, unknown>>(
   query?: string,
-  options?: ParseOptions
+  options?: ParseOptions,
 ): Filter<T> | null {
   if (typeof query === "undefined" || query.trim() === "") {
     return null;

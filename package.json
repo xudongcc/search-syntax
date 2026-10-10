@@ -1,8 +1,11 @@
 {
   "name": "search-syntax",
   "version": "0.0.0-development",
-  "packageManager": "pnpm@10.11.0",
+  "packageManager": "pnpm@12.10.1",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "description": "A search syntax similar to Github, Shopify, Gmail.",
   "author": {
     "name": "Xudong Huang",
@@ -16,66 +19,65 @@
     "url": "git+https://github.com/xudongcc/search-syntax.git"
   },
   "license": "MIT",
-  "main": "dist/index.cjs",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.mts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
       }
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsdown && node generate-cst-dts.js",
-    "prepublish": "npm run build",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && node generate-cst-dts.js",
+    "prepack": "npm run build",
     "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
     "test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
     "test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
-    "lint": "eslint src/**/**.ts",
-    "lint:fix": "eslint src/**/**.ts --fix",
+    "test:package": "node --test test/package.test.mjs && tsc --noEmit -p test/tsconfig.json",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix --max-warnings=0",
     "generate-cst-dts": "node generate-cst-dts.js",
     "docs": "typedoc",
     "docs:coverage": "typedoc --plugin typedoc-plugin-coverage",
     "semantic-release": "semantic-release"
   },
   "dependencies": {
-    "chevrotain": "^11.0.3",
+    "chevrotain": "^13.2.0",
     "dayjs": "^1.11.19",
-    "lodash-es": "^4.17.21"
+    "lodash-es": "^4.18.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@jest/globals": "^30.5.2",
     "@types/jest": "^30.0.0",
     "@types/lodash-es": "^4.17.12",
-    "@types/node": "^25.0.1",
-    "@typescript-eslint/eslint-plugin": "^8.49.0",
-    "@typescript-eslint/parser": "^8.49.0",
-    "commitizen": "^4.3.1",
+    "@types/node": "^26.6.5",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "commitizen": "^4.3.2",
     "cz-conventional-changelog": "^3.3.0",
-    "eslint": "^9.39.1",
+    "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-config-standard-with-typescript": "^43.0.1",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jest": "^29.2.1",
-    "eslint-plugin-n": "^17.23.1",
-    "eslint-plugin-prettier": "^5.5.4",
-    "eslint-plugin-promise": "^7.2.1",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-jest": "^29.16.6",
+    "eslint-plugin-n": "^18.4.1",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-promise": "^7.3.0",
+    "globals": "^17.13.0",
     "husky": "^9.1.7",
-    "jest": "^30.2.0",
-    "lint-staged": "^16.2.7",
-    "prettier": "^3.7.4",
-    "semantic-release": "^25.0.2",
-    "ts-jest": "^29.4.6",
-    "ts-node": "^10.9.2",
-    "tsdown": "^0.17.3",
-    "typedoc": "^0.28.15",
-    "typedoc-plugin-coverage": "^4.0.2",
-    "typescript": "^5.9.3"
+    "jest": "^30.5.2",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "semantic-release": "^25.0.9",
+    "ts-jest": "^29.4.14",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-coverage": "^4.0.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.71.1"
   },
   "husky": {
     "hooks": {

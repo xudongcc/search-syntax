@@ -1,0 +1,8 @@
+# These exact releases are part of the requested latest-toolchain upgrade.
+minimumReleaseAgeExclude:
+  - "@types/node@26.6.5"
+  - prettier@3.9.10
+
+allowBuilds:
+  "@parcel/watcher": true
+  unrs-resolver: true

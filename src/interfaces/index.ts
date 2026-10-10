@@ -160,9 +160,7 @@ export interface LogicalOperators<T = Record<string, unknown>> {
  * ```
  */
 export type Filter<T = Record<string, unknown>> = {
-  [P in keyof T]?:
-    | ArrayElement<T[P]>
-    | ComparisonOperators<ArrayElement<T[P]>>;
+  [P in keyof T]?: ArrayElement<T[P]> | ComparisonOperators<ArrayElement<T[P]>>;
 } & LogicalOperators<T>;
 
 // Legacy type aliases for backward compatibility
