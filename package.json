@@ -3,6 +3,9 @@
   "version": "0.0.0-development",
   "packageManager": "pnpm@10.11.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "description": "A search syntax similar to Github, Shopify, Gmail.",
   "author": {
     "name": "Xudong Huang",
@@ -16,27 +19,26 @@
     "url": "git+https://github.com/xudongcc/search-syntax.git"
   },
   "license": "MIT",
-  "main": "dist/index.cjs",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.mts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
       }
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsdown && node generate-cst-dts.js",
-    "prepublish": "npm run build",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && node generate-cst-dts.js",
+    "prepack": "npm run build",
     "test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
     "test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
     "test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
+    "test:package": "node --test test/package.test.mjs && tsc --noEmit -p test/tsconfig.json",
     "lint": "eslint src/**/**.ts",
     "lint:fix": "eslint src/**/**.ts --fix",
     "generate-cst-dts": "node generate-cst-dts.js",
@@ -45,9 +47,9 @@
     "semantic-release": "semantic-release"
   },
   "dependencies": {
-    "chevrotain": "^11.0.3",
+    "chevrotain": "^13.2.0",
     "dayjs": "^1.11.19",
-    "lodash-es": "^4.17.21"
+    "lodash-es": "^4.18.1"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
@@ -72,7 +74,6 @@
     "semantic-release": "^25.0.2",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
-    "tsdown": "^0.17.3",
     "typedoc": "^0.28.15",
     "typedoc-plugin-coverage": "^4.0.2",
     "typescript": "^5.9.3"

@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ["22.0.0", "24"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "lts/*"
+          node-version: ${{ matrix.node }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -30,5 +33,12 @@ jobs:
       - name: Test
         run: pnpm test:coverage
 
+      - name: Build
+        run: pnpm build
+
+      - name: Test package entry points
+        run: pnpm test:package
+
       - name: Coverage
+        if: matrix.node == '24'
         uses: codecov/codecov-action@v1

@@ -1,13 +1,11 @@
-import { writeFileSync } from "fs";
-import { resolve, dirname } from "path";
+import { writeFileSync } from "node:fs";
 import { generateCstDts } from "chevrotain";
-import { SearchSyntaxParser } from "./dist/index.mjs";
-import { fileURLToPath } from "url";
+import { SearchSyntaxParser } from "./dist/parser.js";
 
 const parser = new SearchSyntaxParser();
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
 const dtsString = generateCstDts(parser.getGAstProductions());
-const dtsPath = resolve(__dirname, "src/cst.d.ts");
-writeFileSync(dtsPath, dtsString);
+// TypeScript does not copy input .d.ts files into its output directory.
+for (const path of ["./src/cst.d.ts", "./dist/cst.d.ts"]) {
+  writeFileSync(new URL(path, import.meta.url), dtsString);
+}

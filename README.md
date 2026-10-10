@@ -7,6 +7,8 @@ A search syntax parser similar to GitHub, Shopify, and Gmail. Converts human-rea
 
 ## Installation
 
+Requires Node.js 22 or later. This package is ESM-only.
+
 ```bash
 npm install search-syntax
 # or
@@ -14,6 +16,32 @@ pnpm add search-syntax
 # or
 yarn add search-syntax
 ```
+
+## Migrating to v4
+
+Version 4 upgrades Chevrotain to version 13, requires Node.js 22 or later, and
+publishes native ESM JavaScript and TypeScript declarations without bundling.
+Chevrotain no longer depends on Lodash, and search-syntax's own `lodash-es`
+dependency now requires version 4.18.1 or later to include the security fixes.
+
+Replace `require("search-syntax")` with `import { parse } from "search-syntax"`.
+CommonJS applications can use asynchronous `import("search-syntax")` instead.
+TypeScript applications should use ESM with `NodeNext` module resolution, or
+`Bundler` resolution when using a bundler.
+
+The `parse(query, options)` API and search syntax are unchanged. Applications
+using the exported `SearchSyntaxParser`, `searchSyntaxParser`, or CST types should
+also account for these upstream changes:
+
+- The inherited `computeContentAssist()` and `getNextPossibleTokenTypes()` methods
+  have been removed.
+- Unavailable token and CST locations now use `-1` instead of `NaN`. Update direct
+  location checks such as `Number.isNaN(token.startOffset)` to
+  `token.startOffset === -1`.
+- Parser DSL types are stricter; custom parser extensions may need type updates.
+
+See the [Chevrotain migration notes](https://chevrotain.io/docs/changes/BREAKING_CHANGES.html)
+and [changelog](https://chevrotain.io/docs/changes/CHANGELOG.html) for details.
 
 ## Quick Start
 
