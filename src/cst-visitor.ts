@@ -47,7 +47,7 @@ function throwUnsupportedSyntax(field: string, value: string): never {
 }
 
 const relativeDatePattern = /^\s*([+-]?\d+)\s*([smhdwMy])\s*$/;
-const explicitTimezonePattern = /(?:[Tt]|\s).*(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/;
+const timezoneSuffixPattern = /(?:[zZ]|[+-]\d{2}(?::?\d{2})?)$/;
 const dateTimePrefixPattern = /^(\d{4}-\d{2}-\d{2})(?=[Tt\s])/;
 const isoLikeDatePattern = /^\d{4}(?:-\d+(?:-\d+)?)?(?:[Tt\s].*)?$/;
 
@@ -118,7 +118,15 @@ function getValueContext(
 }
 
 function hasExplicitTimezone(value: string): boolean {
-  return explicitTimezonePattern.test(value);
+  const suffix = timezoneSuffixPattern.exec(value);
+  if (suffix === null) {
+    return false;
+  }
+
+  // Separate the bounded suffix from the separator search to avoid rescanning
+  // the remaining input for every whitespace character.
+  const separatorIndex = value.search(/[Tt\s]/);
+  return separatorIndex !== -1 && separatorIndex < suffix.index;
 }
 
 function getDateOnlyFormat(value: string):
